@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "swiftui-hooks",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ra1028/swiftui-hooks",
+      "state" : {
+        "revision" : "f096d6b4475a55da402aaec4e297bdd07bf52c20",
+        "version" : "0.0.8"
+      }
+    }
+  ],
+  "version" : 2
+}
