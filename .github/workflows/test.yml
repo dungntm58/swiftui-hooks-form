@@ -1,0 +1,27 @@
+name: test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Build and Test default scheme using any available Apple simulator
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        xcode_version:
+          - 14.0.1
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Show environments
+        run: |
+          swift --version
+          xcodebuild -version
+      - name: Test library
+        run: make test-library
+      - name: Build examples
+        run: make build-examples
