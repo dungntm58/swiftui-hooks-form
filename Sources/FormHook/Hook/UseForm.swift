@@ -9,19 +9,12 @@ import Foundation
 import Hooks
 
 public func useForm<FieldName>(
-    updateStrategy: HookUpdateStrategy?,
     mode: Mode = .onSubmit,
     reValidateMode: ReValidateMode = .onChange,
     defaultValues: [FieldName: Any]? = nil
 ) -> Form<FieldName> where FieldName: Hashable {
-    useHook(
-        FormHook(
-            updateStrategy: updateStrategy,
-            mode: mode,
-            reValidateMode: reValidateMode,
-            defaultValues: defaultValues
-        )
-    )
+    let state = useState(FormState<FieldName>())
+    return Form(mode: mode, reValidateMode: reValidateMode, defaultValues: defaultValues, state: state)
 }
 
 public struct Mode: OptionSet {
@@ -49,55 +42,4 @@ public struct ReValidateMode: OptionSet {
     public static let onBlur = ReValidateMode(rawValue: 1 << 1)
     public static let onSubmit = ReValidateMode(rawValue: 1 << 2)
     public static let all: ReValidateMode = [onChange, onBlur, onSubmit]
-}
-
-private struct FormHook<FieldName>: Hook where FieldName: Hashable {
-    let updateStrategy: Hooks.HookUpdateStrategy?
-    let mode: Mode
-    let reValidateMode: ReValidateMode
-    let defaultValues: [FieldName: Any]?
-
-    func makeState() -> Ref {
-        .init(state: .init())
-    }
-
-    func value(coordinator: Coordinator) -> Form<FieldName> {
-        .init(
-            initialState: coordinator.state.state,
-            mode: mode,
-            reValidateMode: reValidateMode,
-            defaultValues: defaultValues
-        ) { state, needsUpdateView in
-            if coordinator.state.isDisposed {
-                return
-            }
-            coordinator.state.state = state
-            guard needsUpdateView else {
-                return
-            }
-            if Thread.current.isMainThread {
-                coordinator.updateView()
-            } else {
-                DispatchQueue.main.async {
-                    coordinator.updateView()
-                }
-            }
-        }
-    }
-
-    func dispose(state: Ref) {
-        state.isDisposed = true
-    }
-}
-
-extension FormHook {
-    class Ref {
-        var state: FormState<FieldName>
-        var isDisposed: Bool
-
-        init(state: FormState<FieldName>) {
-            self.state = state
-            self.isDisposed = false
-        }
-    }
 }

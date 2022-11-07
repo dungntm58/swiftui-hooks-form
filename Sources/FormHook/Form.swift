@@ -101,16 +101,18 @@ public struct Form<FieldName> where FieldName: Hashable {
     let mode: Mode
     let reValidateMode: ReValidateMode
     let defaultValues: [FieldName: Any]?
-    let stateChanged: (FormState<FieldName>, Bool) -> Void
+    @Binding
+    var state: FormState<FieldName>
 
-    public let formState: FormState<FieldName>
-
-    init(initialState: FormState<FieldName>, mode: Mode, reValidateMode: ReValidateMode, defaultValues: [FieldName: Any]?, stateChanged: @escaping (FormState<FieldName>, Bool) -> Void) {
-        self.formState = initialState
+    init(mode: Mode, reValidateMode: ReValidateMode, defaultValues: [FieldName: Any]?, state: Binding<FormState<FieldName>>) {
+        self._state = state
         self.mode = mode
         self.reValidateMode = reValidateMode
         self.defaultValues = defaultValues
-        self.stateChanged = stateChanged
+    }
+
+    public var formState: FormState<FieldName> {
+        state
     }
 
     public func register<Value>(name: FieldName, options: RegisterOption<FieldName, Value>) -> (onChange: () -> Void, onBlur: () -> Void, name: FieldName) where Value: Comparable {
