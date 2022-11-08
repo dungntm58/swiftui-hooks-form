@@ -9,42 +9,40 @@ import Foundation
 import SwiftUI
 import Hooks
 
-public struct FieldOption<FieldName, Value> where FieldName: Hashable {
-    public let onChange: (() -> Void)?
-    public let onBlur: (() -> Void)?
-    public let value: Value
+public struct FieldOption<FieldName, Value> {
     public let name: FieldName
+    public let value: Binding<Value>
+
+    init(name: FieldName, value: Binding<Value>) {
+        self.name = name
+        self.value = value
+    }
 }
 
-public struct ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
-    public let field: FieldOption<FieldName, Value>
-    public let fieldState: FieldState
-    public let formState: FormState<FieldName>
-}
+public typealias ControllerRenderOption<FieldName, Value> = (field: FieldOption<FieldName, Value>, fieldState: FieldState, formState: FormState<FieldName>) where FieldName: Hashable
 
-public struct Controller<Content, FieldName, Value>: HookView where Content: View, FieldName: Hashable, Value: Comparable {
+public struct Controller<Content, FieldName, Value>: View where Content: View, FieldName: Hashable {
     let name: FieldName
-    let control: Control
     let defaultValue: Value
-    let rules: Rule<FieldName, Value>
+    let rules: any Validator<Value>
     let render: (ControllerRenderOption<FieldName, Value>) -> Content
 
     public init(
         name: FieldName,
-        control: Control,
         defaultValue: Value,
-        rules: Rule<FieldName, Value>,
+        rules: any Validator<Value> = NoopValidator(),
         @ViewBuilder render: @escaping (ControllerRenderOption<FieldName, Value>) -> Content
     ) {
         self.name = name
-        self.control = control
         self.defaultValue = defaultValue
         self.rules = rules
         self.render = render
     }
 
-    public var hookBody: some View {
-        let renderOption = useController(name: name, control: control, defaultValue: defaultValue, rules: rules)
-        return render(renderOption)
+    public var body: some View {
+        HookScope {
+            let renderOption = useController(name: name, defaultValue: defaultValue, rules: rules)
+            render(renderOption)
+        }
     }
 }

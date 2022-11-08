@@ -5,199 +5,382 @@
 //  Created by Robert on 06/11/2022.
 //
 
+import Foundation
 import SwiftUI
 import Hooks
 
-public struct Rule<FieldName, Value> where FieldName: Hashable, Value: Comparable {
-    public let required: Bool = true
-    public let min: Value?
-    public let max: Value?
-    public let minLength: Int?
-    public let maxLength: Int?
-    public let pattern: String?
-    public let validate: [FieldName: AnyValidator]?
-}
+public class FormControl<FieldName> where FieldName: Hashable {
+    var options: FormOption<FieldName>
+    var fields: [FieldName: FieldProtocol]
+    @MainActor @Binding
+    private(set) public var formState: FormState<FieldName>
+    var instantFormState: FormState<FieldName>
 
-public struct RegisterOption<FieldName, Value> where FieldName: Hashable, Value: Comparable {
-    public let rule: Rule<FieldName, Value>
-    public let value: ((Any) -> Value)?
-    public let shouldUnregister: Bool = false
-    public let onChange: (() -> Void)?
-    public let onBlur: (() -> Void)?
-    public let disabled: Bool = false
-}
-
-public struct UnregisterOption: OptionSet {
-    public var rawValue: Int
-
-    public init(rawValue: Int) {
-        self.rawValue = rawValue
+    init(options: FormOption<FieldName>, formState: Binding<FormState<FieldName>>) {
+        self.options = options
+        self.fields = [:]
+        self._formState = formState
+        self.instantFormState = formState.wrappedValue
     }
 
-    public static let keepDirty = UnregisterOption(rawValue: 1 << 0)
-    public static let keepTouched = UnregisterOption(rawValue: 1 << 1)
-    public static let keepIsValid = UnregisterOption(rawValue: 1 << 2)
-    public static let keepError = UnregisterOption(rawValue: 1 << 3)
-    public static let keepValue = UnregisterOption(rawValue: 1 << 4)
-    public static let keepDefaultValue = UnregisterOption(rawValue: 1 << 5)
-    public static let all: UnregisterOption = [keepDirty, keepTouched, keepIsValid, keepError, keepValue, keepDefaultValue]
-}
-
-public struct ResetOption: OptionSet {
-    public var rawValue: Int
-
-    public init(rawValue: Int) {
-        self.rawValue = rawValue
+    public func register<Value>(name: FieldName, options: RegisterOption<Value>) -> FieldRegistration<Value> {
+        self.instantFormState.defaultValues[name] = options.defaultValue
+        let field: Field<Value>
+        if let f = fields[name] as? Field<Value> {
+            field = f
+            field.options = options
+        } else {
+            field = Field(name: name, options: options, control: self)
+            fields[name] = field
+        }
+        return field.value
     }
 
-    public static let keepDirty = ResetOption(rawValue: 1 << 0)
-    public static let keepDirtyValues = ResetOption(rawValue: 1 << 1)
-    public static let keepTouched = ResetOption(rawValue: 1 << 2)
-    public static let keepIsSubmitted = ResetOption(rawValue: 1 << 3)
-    public static let keepIsValid = ResetOption(rawValue: 1 << 4)
-    public static let keepErrors = ResetOption(rawValue: 1 << 5)
-    public static let keepValues = ResetOption(rawValue: 1 << 6)
-    public static let keepDefaultValues = ResetOption(rawValue: 1 << 7)
-    public static let all: ResetOption = [keepDirty, keepDirtyValues, keepTouched, keepIsSubmitted, keepIsValid, keepErrors, keepValues, keepDefaultValues]
-}
-
-public struct SingleResetOption: OptionSet {
-    public var rawValue: Int
-
-    public init(rawValue: Int) {
-        self.rawValue = rawValue
+    public func unregister(names: [FieldName], options: UnregisterOption = []) async {
+        if !options.contains(.keepValue) {
+            names.forEach { name in
+                fields[name] = nil
+                instantFormState.formValues[name] = nil
+            }
+        }
+        if !options.contains(.keepError) {
+            names.forEach { instantFormState.errors.remove(name: $0) }
+        }
+        if !options.contains(.keepDirty) {
+            names.forEach { instantFormState.dirtyFields.remove($0) }
+        }
+        if !self.options.shouldUnregister && !options.contains(.keepDefaultValue) {
+            names.forEach { instantFormState.defaultValues[$0] = nil }
+        }
+        if !options.contains(.keepIsValid) {
+            await updateValid()
+        } else {
+            await syncFormState()
+        }
     }
 
-    public static let keepDirty = SingleResetOption(rawValue: 1 << 0)
-    public static let keepTouched = SingleResetOption(rawValue: 1 << 1)
-    public static let keepError = SingleResetOption(rawValue: 1 << 2)
-    public static let defaultValue = SingleResetOption(rawValue: 1 << 3)
-    public static let all: SingleResetOption = [keepDirty, keepTouched, keepError, defaultValue]
-}
-
-public struct SetValueOption: OptionSet {
-    public var rawValue: Int
-
-    public init(rawValue: Int) {
-        self.rawValue = rawValue
+    public func unregister(name: FieldName..., options: UnregisterOption = []) async {
+        await unregister(names: name, options: options)
     }
 
-    public static let shouldValidate = SetValueOption(rawValue: 1 << 0)
-    public static let shouldDirty = SetValueOption(rawValue: 1 << 1)
-    public static let shouldTouch = SetValueOption(rawValue: 1 << 2)
-    public static let all: SetValueOption = [shouldValidate, shouldDirty, shouldTouch]
-}
+    public func handleSubmit(onValid: @escaping (FormValue<FieldName>, FormError<FieldName>) async throws -> Void, onInvalid: ((FormValue<FieldName>, FormError<FieldName>) async throws -> Void)? = nil) async throws {
+        let preservedSubmissionState = instantFormState.submissionState
+        instantFormState.submissionState = .submitting
+        let errors: FormError<FieldName>
+        var isOveralValid: Bool
+        if options.mode.contains(.onSubmit) {
+            instantFormState.isValidating = true
+            await syncFormState()
+            (isOveralValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group -> (Bool, FormError<FieldName>) in
+                var errorFields: Set<FieldName> = .init()
+                var messages: [FieldName: [String]] = [:]
+                var isOveralValid = true
 
-public struct FieldError {
-    public enum `Type` {
-        case custom
+                for (key, field) in fields {
+                    group.addTask {
+                        let (isValid, messages) = await field.computeMessages()
+                        return KeyValidationResult(key: key, isValid: isValid, messages: messages)
+                    }
+                }
+                for await keyResult in group {
+                    messages[keyResult.key] = keyResult.messages
+                    if !keyResult.isValid {
+                        errorFields.insert(keyResult.key)
+                        isOveralValid = false
+                    }
+                }
+                return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
+            }
+            instantFormState.isValidating = false
+            await syncFormState()
+        } else if options.reValidateMode.contains(.onSubmit) {
+            instantFormState.isValidating = true
+            await syncFormState()
+            (isOveralValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group -> (Bool, FormError<FieldName>) in
+                var errorFields: Set<FieldName> = .init()
+                var messages: [FieldName: [String]] = [:]
+                var isOveralValid = true
+                for (key, field) in fields where instantFormState.errors.errorFields.contains(key) {
+                    group.addTask {
+                        let (isValid, messages) = await field.computeMessages()
+                        return KeyValidationResult(key: key, isValid: isValid, messages: messages)
+                    }
+                }
+                for await keyResult in group {
+                    messages[keyResult.key] = keyResult.messages
+                    if !keyResult.isValid {
+                        errorFields.insert(keyResult.key)
+                        isOveralValid = false
+                    }
+                }
+                return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
+            }
+            instantFormState.isValidating = false
+            await syncFormState()
+        } else {
+            await syncFormState()
+            isOveralValid = instantFormState.isValid
+            errors = instantFormState.errors
+        }
+        do {
+            if isOveralValid {
+                try await onValid(instantFormState.formValues, errors)
+            } else {
+                try await onInvalid?(instantFormState.formValues, errors)
+            }
+            instantFormState.errors = errors
+            instantFormState.submitCount += 1
+            instantFormState.submissionState = .submitted
+            await syncFormState()
+        } catch {
+            instantFormState.submissionState = preservedSubmissionState
+            throw error
+        }
     }
 
-    public let type: `Type`
-    public let message: String?
-}
-
-public struct Form<FieldName> where FieldName: Hashable {
-    let mode: Mode
-    let reValidateMode: ReValidateMode
-    let defaultValues: [FieldName: Any]?
-    @Binding
-    var state: FormState<FieldName>
-
-    init(mode: Mode, reValidateMode: ReValidateMode, defaultValues: [FieldName: Any]?, state: Binding<FormState<FieldName>>) {
-        self._state = state
-        self.mode = mode
-        self.reValidateMode = reValidateMode
-        self.defaultValues = defaultValues
+    public func reset(defaultValues: FormValue<FieldName>, options: ResetOption = []) async {
+        for (name, defaultValue) in defaultValues {
+            if let defaultValue = Optional.some(defaultValue).flattened() {
+                if !options.contains(.keepDefaultValues) {
+                    instantFormState.defaultValues[name] = defaultValue
+                }
+            } else {
+                assertionFailure("defaultValue must not be nil")
+            }
+            if !options.contains(.keepValues) {
+                instantFormState.formValues[name] = defaultValue
+            }
+        }
+        defaultValues.keys.forEach { name in
+            if !options.contains(.keepDirty) {
+                instantFormState.dirtyFields.remove(name)
+            }
+            if !options.contains(.keepErrors) {
+                instantFormState.errors.remove(name: name)
+            }
+        }
+        if !options.contains(.keepIsValid) {
+            instantFormState.isValid = true
+        }
+        if !options.contains(.keepIsSubmitted) {
+            instantFormState.submissionState = .notSubmit
+        }
+        if !options.contains(.keepSubmitCount) {
+            instantFormState.submitCount = 0
+        }
+        if !options.contains(.keepErrors) {
+            if instantFormState.isValid {
+                await updateValid()
+            } else {
+                await syncFormState()
+            }
+        } else {
+            await syncFormState()
+        }
     }
 
-    public var formState: FormState<FieldName> {
-        state
+    public func reset(name: FieldName, defaultValue: Any, options: SingleResetOption = []) async {
+        guard let defaultValue = Optional.some(defaultValue).flattened() else {
+            assertionFailure("defaultValue must not be nil")
+            return
+        }
+        instantFormState.defaultValues[name] = defaultValue
+        await reset(name: name, options: options)
     }
 
-    public func register<Value>(name: FieldName, options: RegisterOption<FieldName, Value>) -> (onChange: () -> Void, onBlur: () -> Void, name: FieldName) where Value: Comparable {
-        fatalError()
-    }
-
-    public func unregister(names: [FieldName], options: UnregisterOption = []) {
-        
-    }
-
-    public func unregister(name: FieldName..., options: UnregisterOption = []) {
-        unregister(names: name, options: options)
-    }
-
-    public func watch(name: FieldName..., handle: (Any?, String?, String?) -> Void) {
-        
-    }
-
-    public func handleSubmit(_ submit: (Any?) -> Void) {
-        
-    }
-
-    public func reset(values: [FieldName: Any], options: ResetOption = []) {
-        
-    }
-
-    public func reset(name: FieldName, options: SingleResetOption = []) {
-        
-    }
-
-    public func setError(name: FieldName, error: FieldError, shouldFocus: Bool = false) {
-        
+    public func reset(name: FieldName, options: SingleResetOption = []) async {
+        instantFormState.formValues[name] = instantFormState.defaultValues[name]
+        if !options.contains(.keepDirty) {
+            instantFormState.dirtyFields.remove(name)
+        }
+        if !options.contains(.keepError) {
+            instantFormState.errors.remove(name: name)
+            if instantFormState.isValid {
+                await updateValid()
+            } else {
+                await syncFormState()
+            }
+        } else {
+            await syncFormState()
+        }
     }
 
     public func clearErrors(names: [FieldName]) {
-        
+        names.forEach { name in
+            instantFormState.errors.remove(name: name)
+        }
     }
 
     public func clearErrors(name: FieldName...) {
         clearErrors(names: name)
     }
 
-    public func setValue(name: FieldName, value: Any, options: SetValueOption = []) {
-        
+    public func setValue(name: FieldName, value: Any, options: SetValueOption = []) async {
+        instantFormState.formValues[name] = value
+        if options.contains(.shouldDirty) || !areEqual(first: value, second: instantFormState.defaultValues[name]) {
+            instantFormState.dirtyFields.insert(name)
+        }
+        if options.contains(.shouldValidate), let field = fields[name] {
+            let (result, messages) = await field.computeMessages()
+            instantFormState.errors.setMessages(name: name, messages: messages, isValid: result)
+            if !result {
+                instantFormState.isValid = false
+            }
+            await syncFormState()
+        } else {
+            await syncFormState()
+        }
     }
 
-    public func setFocus(name: FieldName, shouldSelect: Bool = true) {
-        
+    public func getFieldState(name: FieldName) -> FieldState {
+        FieldState(
+            isDirty: instantFormState.dirtyFields.contains(name),
+            isInvalid: instantFormState.errors[name] != nil,
+            error: instantFormState.errors[name] ?? []
+        )
     }
 
-    public func getValues(keyPath: AnyKeyPath) -> Any {
-        fatalError()
+    public func trigger(names: [FieldName]) async -> Bool {
+        instantFormState.isValidating = true
+        await syncFormState()
+        let (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
+            var errors = instantFormState.errors
+            for name in names {
+                guard let field = fields[name] else {
+                    continue
+                }
+                group.addTask {
+                    let (isValid, messages) = await field.computeMessages()
+                    return KeyValidationResult(key: name, isValid: isValid, messages: messages)
+                }
+            }
+            var isValid = true
+            for await keyResult in group {
+                errors.setMessages(name: keyResult.key, messages: keyResult.messages, isValid: keyResult.isValid)
+                if !keyResult.isValid {
+                    isValid = false
+                }
+            }
+            return (isValid, errors)
+        }
+        instantFormState.isValidating = false
+        instantFormState.errors = errors
+        await syncFormState()
+        return isValid
     }
 
-    public func getFieldState(name: FieldName, formState: FormState<FieldName>? = nil) {
-        let formState = formState ?? self.formState
-        
-    }
-
-    public func trigger(names: [FieldName]) {
-        
-    }
-
-    public func trigger(name: FieldName...) {
-        trigger(names: name)
+    public func trigger(name: FieldName...) async -> Bool {
+        await trigger(names: name)
     }
 }
 
-public struct FormState<FieldName> where FieldName: Hashable {
-    public private(set) var isDirty: Bool = false
-    public private(set) var dirtyFields: [FieldName] = []
-    public private(set) var touchedFields: [FieldName] = []
-    public private(set) var defaultValues: [FieldName: Any]? = nil
-    public private(set) var isSubmitted: Bool = false
-    public private(set) var isSubmitSuccessful: Bool = false
-    public private(set) var isSubmitting: Bool = false
-    public private(set) var submitCount: Int = 0
-    public private(set) var isValid: Bool = true
-    public private(set) var isValidating: Bool = true
-    public private(set) var errors: [FieldName: String]? = nil
+extension FormControl {
+    func updateValid() async {
+        guard instantFormState.isValid else {
+            return
+        }
+        let isValid: Bool
+        if let resolver = options.resolver {
+            let result = await resolver(formState.formValues, options.context, .init(criteriaMode: options.criteriaMode, names: Array(formState.defaultValues.keys)))
+            switch result {
+            case .success:
+                isValid = true
+            case .failure:
+                isValid = false
+            }
+        } else {
+            isValid = await withTaskGroup(of: Bool.self) { group in
+                for (_, field) in fields {
+                    group.addTask {
+                        await field.computeValidationResult()
+                    }
+                }
+                for await result in group {
+                    if result {
+                        continue
+                    }
+                    group.cancelAll()
+                    return false
+                }
+                return true
+            }
+        }
+        instantFormState.isValid = isValid
+        await syncFormState()
+    }
+
+    @MainActor
+    func syncFormState() {
+        if formState == instantFormState {
+            return
+        }
+        formState = instantFormState
+    }
 }
 
-public struct FieldState {
-    public private(set) var isDirty: Bool = false
-    public private(set) var isTouched: Bool = false
-    public private(set) var isInvalid: Bool = false
-    public private(set) var error: String?
+private extension FormControl {
+    class Field<Value>: FieldProtocol {
+        let name: FieldName
+        var options: RegisterOption<Value> {
+            didSet {
+                value = control.computeValueBinding(name: name, defaultValue: options.defaultValue)
+            }
+        }
+        unowned var control: FormControl<FieldName>
+        var value: Binding<Value>
+
+        init(name: FieldName, options: RegisterOption<Value>, control: FormControl<FieldName>) {
+            self.name = name
+            self.options = options
+            self.control = control
+            self.value = control.computeValueBinding(name: name, defaultValue: options.defaultValue)
+        }
+
+        var anyValue: Any {
+            value.wrappedValue
+        }
+
+        func computeValidationResult() async -> Bool {
+            let validator = options.rules.eraseToAnyValidator()
+            let result = await validator.validate(value.wrappedValue)
+            return validator.isValid(result: result)
+        }
+
+        func computeMessages() async -> (Bool, [String]) {
+            await options.rules.computeMessage(value: value.wrappedValue)
+        }
+    }
+
+    func computeValueBinding<Value>(name: FieldName, defaultValue: Value) -> Binding<Value> {
+        .init { [weak self] in
+            self?.instantFormState.formValues[name] as? Value ?? defaultValue
+        } set: { [weak self] value in
+            self?.instantFormState.formValues[name] = value
+            self?.instantFormState.dirtyFields.insert(name)
+            guard let self = self, self.shouldReValidateOnChange(name: name) else {
+                return
+            }
+            Task {
+                await self.trigger(name: name)
+            }
+        }
+    }
+
+    func shouldReValidateOnChange(name: FieldName) -> Bool {
+        if options.mode.contains(.onChange) {
+            return true
+        }
+        guard instantFormState.errors.errorFields.contains(name) else {
+            return false
+        }
+        return options.reValidateMode.contains(.onChange)
+    }
+}
+
+private extension FormControl {
+    struct KeyValidationResult {
+        let key: FieldName
+        let isValid: Bool
+        let messages: [String]
+    }
 }

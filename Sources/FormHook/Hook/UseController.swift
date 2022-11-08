@@ -10,10 +10,24 @@ import Hooks
 
 public func useController<FieldName, Value>(
     name: FieldName,
-    control: Control,
     defaultValue: Value,
-    rules: Rule<FieldName, Value>,
+    rules: any Validator<Value>,
     shouldUnregister: Bool = false
-) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable, Value: Comparable {
-    fatalError()
+) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
+    let form = useContext(Context<FormControl<FieldName>>.self)
+    let registration = form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue))
+
+    useEffect {{
+        guard shouldUnregister else { return }
+        Task {
+            await form.unregister(name: name)
+        }
+    }}
+
+    let field = FieldOption(
+        name: name,
+        value: registration
+    )
+    let fieldState = form.getFieldState(name: name)
+    return (field: field, fieldState: fieldState, formState: form.instantFormState)
 }
