@@ -24,6 +24,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
     }
 
     public func register<Value>(name: FieldName, options: RegisterOption<Value>) -> FieldRegistration<Value> {
+        self.instantFormState.formValues[name] = options.defaultValue
         self.instantFormState.defaultValues[name] = options.defaultValue
         let field: Field<Value>
         if let f = fields[name] as? Field<Value> {
@@ -277,7 +278,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
 extension FormControl {
     func updateValid() async {
         guard instantFormState.isValid else {
-            return
+            return await syncFormState()
         }
         let isValid: Bool
         if let resolver = options.resolver {

@@ -35,7 +35,7 @@ let package = Package(
             name: "FormHookTests",
             dependencies: [
                 "FormHook",
-                "Quick",
+                .product(name: "Quick", package: "Quick", condition: .when(platforms: [.macOS, .iOS, .tvOS])),
                 "Nimble"
             ]),
     ]

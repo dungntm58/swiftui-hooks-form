@@ -1,3 +1,4 @@
+#if os(iOS) || os(tvOS)
 import SwiftUI
 import Quick
 import Nimble
@@ -63,9 +64,10 @@ final class FormHookTests: QuickSpec {
                     await formControl.unregister(name: .a, options: .keepDefaultValue)
                     let formState = await formControl.formState
                     
-                    expect(areEqual(first: formState.formValues[.a], second: testDefaultValue)) == true
+                    expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue)) == true
                 }
             }
         }
     }
 }
+#endif

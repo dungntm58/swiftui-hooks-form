@@ -113,7 +113,7 @@ public struct LengthRangeValidator<Value>: Validator where Value: Collection {
     }
 }
 
-@available(iOS 16.0, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 public struct RegexMatchingValidator<Value>: Validator where Value: StringProtocol {
     let regex: Regex<Value>
     let messageGenerator: MessageGeneratorFunction<Bool>

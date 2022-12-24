@@ -12,7 +12,7 @@ extension Validator {
         CompoundValidator<Value>(operator: .and, shouldGetAllMessages: shouldGetAllMessages, validator: [eraseToAnyValidator()] + validator.map { $0.eraseToAnyValidator() })
     }
 
-    @available(iOS 16.0.0, *)
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public func and(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator {
         CompoundValidator<Value>(operator: .and, shouldGetAllMessages: shouldGetAllMessages, validator: ([self] + validator).map { $0.eraseToAnyValidator() })
     }
@@ -21,7 +21,7 @@ extension Validator {
         CompoundValidator<Value>(operator: .or, shouldGetAllMessages: shouldGetAllMessages, validator: [eraseToAnyValidator()] + validator.map { $0.eraseToAnyValidator() })
     }
 
-    @available(iOS 16.0.0, *)
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public func or(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator {
         CompoundValidator<Value>(operator: .or, shouldGetAllMessages: shouldGetAllMessages, validator: ([self] + validator).map { $0.eraseToAnyValidator() })
     }

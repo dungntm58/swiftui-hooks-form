@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         xcode_version:
-          - 14.0.1
+          - latest-stable
 
     steps:
       - uses: actions/checkout@v2
