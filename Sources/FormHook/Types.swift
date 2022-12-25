@@ -104,6 +104,14 @@ public struct FormError<FieldName>: Equatable where FieldName: Hashable {
     mutating func remove(name: FieldName) {
         setMessages(name: name, messages: nil, isValid: true)
     }
+
+    mutating func removeMessagesOnly(name: FieldName) {
+        self.messages[name] = nil
+    }
+
+    mutating func removeValidityOnly(name: FieldName) {
+        self.errorFields.remove(name)
+    }
 }
 
 extension FormError: Error {}
@@ -160,6 +168,14 @@ public struct FormState<FieldName>: Equatable where FieldName: Hashable {
 
     public var isDirty: Bool {
         !dirtyFields.isEmpty
+    }
+
+    func getFieldState(name: FieldName) -> FieldState {
+        FieldState(
+            isDirty: dirtyFields.contains(name),
+            isInvalid: errors.errorFields.contains(name),
+            error: errors[name] ?? []
+        )
     }
 }
 

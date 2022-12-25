@@ -38,14 +38,14 @@ public class FormControl<FieldName> where FieldName: Hashable {
     }
 
     public func unregister(names: [FieldName], options: UnregisterOption = []) async {
+        if self.options.shouldUnregister {
+            names.forEach { fields[$0] = nil }
+        }
         if !options.contains(.keepValue) {
-            names.forEach { name in
-                fields[name] = nil
-                instantFormState.formValues[name] = nil
-            }
+            names.forEach { instantFormState.formValues[$0] = nil }
         }
         if !options.contains(.keepError) {
-            names.forEach { instantFormState.errors.remove(name: $0) }
+            names.forEach { instantFormState.errors.removeMessagesOnly(name: $0) }
         }
         if !options.contains(.keepDirty) {
             names.forEach { instantFormState.dirtyFields.remove($0) }
@@ -53,11 +53,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if !self.options.shouldUnregister && !options.contains(.keepDefaultValue) {
             names.forEach { instantFormState.defaultValues[$0] = nil }
         }
-        if !options.contains(.keepIsValid) {
-            await updateValid()
-        } else {
-            await syncFormState()
+        if options.contains(.keepIsValid) {
+            return await syncFormState()
         }
+        names.forEach { instantFormState.errors.removeValidityOnly(name: $0) }
+        await updateValid()
     }
 
     public func unregister(name: FieldName..., options: UnregisterOption = []) async {
@@ -85,10 +85,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 }
                 for await keyResult in group {
                     messages[keyResult.key] = keyResult.messages
-                    if !keyResult.isValid {
-                        errorFields.insert(keyResult.key)
-                        isOveralValid = false
+                    if keyResult.isValid {
+                        continue
                     }
+                    errorFields.insert(keyResult.key)
+                    isOveralValid = false
                 }
                 return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
             }
@@ -157,7 +158,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 instantFormState.dirtyFields.remove(name)
             }
             if !options.contains(.keepErrors) {
-                instantFormState.errors.remove(name: name)
+                instantFormState.errors.removeMessagesOnly(name: name)
+            }
+            if !options.contains(.keepIsValid) {
+                instantFormState.errors.removeValidityOnly(name: name)
             }
         }
         if !options.contains(.keepIsValid) {
@@ -169,15 +173,14 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if !options.contains(.keepSubmitCount) {
             instantFormState.submitCount = 0
         }
-        if !options.contains(.keepErrors) {
-            if instantFormState.isValid {
-                await updateValid()
-            } else {
-                await syncFormState()
-            }
-        } else {
+        
+        if options.contains(.keepErrors) {
             await syncFormState()
         }
+        if instantFormState.isValid {
+            return await updateValid()
+        }
+        await syncFormState()
     }
 
     public func reset(name: FieldName, defaultValue: Any, options: SingleResetOption = []) async {
@@ -194,16 +197,14 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if !options.contains(.keepDirty) {
             instantFormState.dirtyFields.remove(name)
         }
-        if !options.contains(.keepError) {
-            instantFormState.errors.remove(name: name)
-            if instantFormState.isValid {
-                await updateValid()
-            } else {
-                await syncFormState()
-            }
-        } else {
-            await syncFormState()
+        if options.contains(.keepError) {
+            return await syncFormState()
         }
+        instantFormState.errors.remove(name: name)
+        if instantFormState.isValid {
+            return await updateValid()
+        }
+        await syncFormState()
     }
 
     public func clearErrors(names: [FieldName]) {
@@ -227,18 +228,17 @@ public class FormControl<FieldName> where FieldName: Hashable {
             if !result {
                 instantFormState.isValid = false
             }
-            await syncFormState()
-        } else {
-            await syncFormState()
+            return await syncFormState()
         }
+        await syncFormState()
     }
 
     public func getFieldState(name: FieldName) -> FieldState {
-        FieldState(
-            isDirty: instantFormState.dirtyFields.contains(name),
-            isInvalid: instantFormState.errors[name] != nil,
-            error: instantFormState.errors[name] ?? []
-        )
+        instantFormState.getFieldState(name: name)
+    }
+
+    public func getFieldState(name: FieldName) async -> FieldState {
+        await formState.getFieldState(name: name)
     }
 
     public func trigger(names: [FieldName]) async -> Bool {
@@ -280,33 +280,39 @@ extension FormControl {
         guard instantFormState.isValid else {
             return await syncFormState()
         }
-        let isValid: Bool
         if let resolver = options.resolver {
+            let isValid: Bool
             let result = await resolver(formState.formValues, options.context, .init(criteriaMode: options.criteriaMode, names: Array(formState.defaultValues.keys)))
             switch result {
             case .success:
                 isValid = true
-            case .failure:
+            case .failure(let error):
                 isValid = false
+                instantFormState.errors = error.errors
             }
+            instantFormState.isValid = isValid
         } else {
-            isValid = await withTaskGroup(of: Bool.self) { group in
-                for (_, field) in fields {
+            let (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
+                var errors = instantFormState.errors
+                for (key, field) in fields {
                     group.addTask {
-                        await field.computeValidationResult()
+                        let (isValid, messages) = await field.computeMessages()
+                        return KeyValidationResult(key: key, isValid: isValid, messages: messages)
                     }
                 }
-                for await result in group {
-                    if result {
+                for await keyResult in group {
+                    errors.setMessages(name: keyResult.key, messages: keyResult.messages, isValid: keyResult.isValid)
+                    if keyResult.isValid {
                         continue
                     }
                     group.cancelAll()
-                    return false
+                    return (false, errors)
                 }
-                return true
+                return (true, errors)
             }
+            instantFormState.errors = errors
+            instantFormState.isValid = isValid
         }
-        instantFormState.isValid = isValid
         await syncFormState()
     }
 
