@@ -14,6 +14,7 @@ final class FormHookTests: QuickSpec {
     override func spec() {
         unregisterSpecs()
         resetSingleFieldSpecs()
+        resetFormSpecs()
     }
     
     func unregisterSpecs() {
@@ -241,6 +242,11 @@ final class FormHookTests: QuickSpec {
                             expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue)) == true
                             expect(areEqual(first: formState.formValues[.a], second: testDefaultValue)) == true
                         }
+                        
+                        it("key \"a\" is not dirty") {
+                            let fieldState = await formControl.getFieldState(name: .a)
+                            expect(fieldState.isDirty) == false
+                        }
                     }
                     
                     context("with option .keepDirty") {
@@ -294,6 +300,172 @@ final class FormHookTests: QuickSpec {
                             expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue2)) == true
                             expect(areEqual(first: formState.formValues[.a], second: testDefaultValue2)) == true
                         }
+                    }
+                }
+            }
+        }
+    }
+    
+    func resetFormSpecs() {
+        describe("Form Control registered field \"a\" and \"b\"") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            
+            let aDefaultValue2 = "%^$#)"
+            let bDefaultValue2 = "%^$#*()"
+            
+            var aBinder: Binding<String>!
+            var bBinder: Binding<String>!
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    criteriaMode: .all,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                bBinder = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("reset with no options") {
+                beforeEach {
+                    await formControl.reset(defaultValues: [
+                        .a: aDefaultValue2,
+                        .b: bDefaultValue2
+                    ])
+                }
+                
+                it("default values of key \"a\" and \"b\" change to new default values") {
+                    let formState = await formControl.formState
+                    expect(areEqual(first: formState.defaultValues[.a], second: aDefaultValue2)) == true
+                    expect(areEqual(first: formState.defaultValues[.b], second: bDefaultValue2)) == true
+                }
+                
+                it("values of key \"a\" and \"b\" change to new default values") {
+                    let formState = await formControl.formState
+                    expect(areEqual(first: formState.formValues[.a], second: aDefaultValue2)) == true
+                    expect(areEqual(first: formState.formValues[.b], second: bDefaultValue2)) == true
+                }
+                
+                it("key \"a\" and \"b\" are not dirty") {
+                    let aFieldState = await formControl.getFieldState(name: .a)
+                    expect(aFieldState.isDirty) == false
+                    
+                    let bFieldState = await formControl.getFieldState(name: .b)
+                    expect(bFieldState.isDirty) == false
+                }
+            }
+            
+            context("reset with option .keepDefaultValues") {
+                beforeEach {
+                    await formControl.reset(defaultValues: [
+                        .a: aDefaultValue2,
+                        .b: bDefaultValue2
+                    ], options: .keepDefaultValues)
+                }
+                
+                it("default values of key \"a\" and \"b\" don't change") {
+                    let formState = await formControl.formState
+                    expect(areEqual(first: formState.defaultValues[.a], second: aDefaultValue)) == true
+                    expect(areEqual(first: formState.defaultValues[.b], second: bDefaultValue)) == true
+                }
+                
+                it("values of key \"a\" and \"b\" change to new default values") {
+                    let formState = await formControl.formState
+                    expect(areEqual(first: formState.formValues[.a], second: aDefaultValue2)) == true
+                    expect(areEqual(first: formState.formValues[.b], second: bDefaultValue2)) == true
+                }
+            }
+            
+            context("reset with option .keepValues") {
+                beforeEach {
+                    await formControl.reset(defaultValues: [
+                        .a: aDefaultValue2,
+                        .b: bDefaultValue2
+                    ], options: .keepValues)
+                }
+                
+                it("default values of key \"a\" and \"b\" change to new default values") {
+                    let formState = await formControl.formState
+                    expect(areEqual(first: formState.defaultValues[.a], second: aDefaultValue2)) == true
+                    expect(areEqual(first: formState.defaultValues[.b], second: bDefaultValue2)) == true
+                }
+                
+                it("values of key \"a\" and \"b\" don't change") {
+                    let formState = await formControl.formState
+                    expect(areEqual(first: formState.formValues[.a], second: aDefaultValue)) == true
+                    expect(areEqual(first: formState.formValues[.b], second: bDefaultValue)) == true
+                }
+            }
+            
+            context("reset with option .keepDirty") {
+                context("values of \"a\" and \"b\" change") {
+                    beforeEach {
+                        aBinder.wrappedValue = "new value a"
+                        bBinder.wrappedValue = "new value b"
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepDirty)
+                    }
+                    
+                    it("key \"a\" and \"b\" are still dirty") {
+                        let aFieldState = await formControl.getFieldState(name: .a)
+                        expect(aFieldState.isDirty) == true
+                        
+                        let bFieldState = await formControl.getFieldState(name: .b)
+                        expect(bFieldState.isDirty) == true
+                    }
+                }
+                
+                context("values of \"a\" changes and \"b\" doesn't") {
+                    beforeEach {
+                        aBinder.wrappedValue = "new value a"
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepDirty)
+                    }
+                    
+                    it("key \"a\" is dirty and \"b\" isn't") {
+                        let aFieldState = await formControl.getFieldState(name: .a)
+                        expect(aFieldState.isDirty) == true
+                        
+                        let bFieldState = await formControl.getFieldState(name: .b)
+                        expect(bFieldState.isDirty) == false
+                    }
+                }
+                
+                context("values of \"a\" and \"b\" don't change") {
+                    beforeEach {
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepDirty)
+                    }
+                    
+                    it("key \"a\" and \"b\" aren't dirty") {
+                        let aFieldState = await formControl.getFieldState(name: .a)
+                        expect(aFieldState.isDirty) == false
+                        
+                        let bFieldState = await formControl.getFieldState(name: .b)
+                        expect(bFieldState.isDirty) == false
                     }
                 }
             }
