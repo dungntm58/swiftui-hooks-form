@@ -16,11 +16,26 @@ jobs:
           - latest-stable
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Show environments
         run: |
           swift --version
           xcodebuild -version
+      - uses: actions/cache/restore@v3
+        id: cache
+        with:
+          path: /Users/runner/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+      - name: Resolve dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: make resolve-dependencies
+      - uses: actions/cache@v3
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: /Users/runner/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
       - name: Test library
         run: make test-library
       - name: Build examples

@@ -38,6 +38,10 @@ docs-preview:
 .PHONY: test
 test: test-library build-examples
 
+.PHONY: resolve-dependencies
+resolve-dependencies:
+	xcodebuild -resolvePackageDependencies
+
 .PHONY: test-library
 test-library:
 	for platform in "$(TEST_PLATFORM_IOS)" "$(TEST_PLATFORM_MACOS)" "$(TEST_PLATFORM_TVOS)" "$(TEST_PLATFORM_WATCHOS)"; do \
