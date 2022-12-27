@@ -472,29 +472,4 @@ final class FormHookTests: QuickSpec {
         }
     }
 }
-
-protocol ResultControllableValidator: Validator where Result: BoolConvertible {
-    var result: Result { get }
-    var messages: [String] { get }
-}
-
-extension ResultControllableValidator {
-    func validate(_ value: Value) async -> Result {
-        result
-    }
-    
-    func generateMessage(result: Result) -> [String] {
-        messages
-    }
-}
-
-class MockValidator<Value, Result>: ResultControllableValidator where Result: BoolConvertible {
-    var result: Result
-    var messages: [String]
-    
-    init(result: Result, messages: [String] = []) {
-        self.result = result
-        self.messages = messages
-    }
-}
 #endif
