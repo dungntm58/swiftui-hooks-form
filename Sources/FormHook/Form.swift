@@ -169,6 +169,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
         }
         if !options.contains(.keepIsSubmitted) {
             instantFormState.submissionState = .notSubmit
+            instantFormState.isSubmitSuccessful = false
         }
         if !options.contains(.keepSubmitCount) {
             instantFormState.submitCount = 0

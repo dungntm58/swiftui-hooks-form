@@ -344,31 +344,58 @@ final class FormHookTests: QuickSpec {
             }
             
             context("reset with no options") {
-                beforeEach {
-                    await formControl.reset(defaultValues: [
-                        .a: aDefaultValue2,
-                        .b: bDefaultValue2
-                    ])
-                }
-                
-                it("default values of key \"a\" and \"b\" change to new default values") {
-                    let formState = await formControl.formState
-                    expect(areEqual(first: formState.defaultValues[.a], second: aDefaultValue2)) == true
-                    expect(areEqual(first: formState.defaultValues[.b], second: bDefaultValue2)) == true
-                }
-                
-                it("values of key \"a\" and \"b\" change to new default values") {
-                    let formState = await formControl.formState
-                    expect(areEqual(first: formState.formValues[.a], second: aDefaultValue2)) == true
-                    expect(areEqual(first: formState.formValues[.b], second: bDefaultValue2)) == true
-                }
-                
-                it("key \"a\" and \"b\" are not dirty") {
-                    let aFieldState = await formControl.getFieldState(name: .a)
-                    expect(aFieldState.isDirty) == false
+                context("and formState is not submitted") {
+                    beforeEach {
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ])
+                    }
                     
-                    let bFieldState = await formControl.getFieldState(name: .b)
-                    expect(bFieldState.isDirty) == false
+                    it("default values of key \"a\" and \"b\" change to new default values") {
+                        let formState = await formControl.formState
+                        expect(areEqual(first: formState.defaultValues[.a], second: aDefaultValue2)) == true
+                        expect(areEqual(first: formState.defaultValues[.b], second: bDefaultValue2)) == true
+                    }
+                    
+                    it("values of key \"a\" and \"b\" change to new default values") {
+                        let formState = await formControl.formState
+                        expect(areEqual(first: formState.formValues[.a], second: aDefaultValue2)) == true
+                        expect(areEqual(first: formState.formValues[.b], second: bDefaultValue2)) == true
+                    }
+                    
+                    it("key \"a\" and \"b\" are not dirty") {
+                        let aFieldState = await formControl.getFieldState(name: .a)
+                        expect(aFieldState.isDirty) == false
+                        
+                        let bFieldState = await formControl.getFieldState(name: .b)
+                        expect(bFieldState.isDirty) == false
+                    }
+                }
+                
+                context("and formState is submitted") {
+                    beforeEach {
+                        formControl.instantFormState.submitCount = 1
+                        formControl.instantFormState.submissionState = .submitted
+                        formControl.instantFormState.isSubmitSuccessful = true
+                        
+                        await formControl.syncFormState()
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ])
+                    }
+                    
+                    it("submitCount equals 0") {
+                        let formState = await formControl.formState
+                        expect(formState.submitCount) == 0
+                    }
+                    
+                    it("formState isSubmitted is false") {
+                        let formState = await formControl.formState
+                        expect(formState.submissionState) == .notSubmit
+                        expect(formState.isSubmitSuccessful) == false
+                    }
                 }
             }
             
@@ -466,6 +493,127 @@ final class FormHookTests: QuickSpec {
                         
                         let bFieldState = await formControl.getFieldState(name: .b)
                         expect(bFieldState.isDirty) == false
+                    }
+                }
+            }
+            
+            context("reset with option .keepErrors") {
+                context("key \"a\" has been already invalid") {
+                    beforeEach {
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                        formControl.instantFormState.errors.setMessages(name: .a, messages: ["Failed to validate a"], isValid: false)
+                        formControl.instantFormState.isValid = false
+                        await formControl.syncFormState()
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepErrors)
+                    }
+                    
+                    it("key \"a\" remains errors") {
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.error.count) == 1
+                        expect(fieldState.error.first) == "Failed to validate a"
+                    }
+                    
+                    it("key \"b\" remains errors") {
+                        let fieldState = await formControl.getFieldState(name: .b)
+                        expect(fieldState.isInvalid) == false
+                        expect(fieldState.error.isEmpty) == true
+                    }
+                }
+                
+                context("key \"a\" and \"b\" have been already invalid") {
+                    beforeEach {
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                        bValidator.result = false
+                        bValidator.messages = ["Failed to validate b"]
+                        formControl.instantFormState.errors.setMessages(name: .a, messages: ["Failed to validate a"], isValid: false)
+                        formControl.instantFormState.errors.setMessages(name: .b, messages: ["Failed to validate b"], isValid: false)
+                        formControl.instantFormState.isValid = false
+                        await formControl.syncFormState()
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepErrors)
+                    }
+                    
+                    it("key \"b\" remains errors") {
+                        let fieldState = await formControl.getFieldState(name: .b)
+                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.error.count) == 1
+                        expect(fieldState.error.first) == "Failed to validate b"
+                    }
+                }
+            }
+            
+            context("reset with option .keepIsValid") {
+                context("and formState isn't valid") {
+                    beforeEach {
+                        formControl.instantFormState.isValid = false
+                        
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                        
+                        await formControl.syncFormState()
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepIsValid)
+                    }
+                    
+                    it("formState validity remains") {
+                        let formState = await formControl.formState
+                        expect(formState.isValid) == false
+                    }
+                }
+            }
+            
+            context("reset with option .keepSubmitCount") {
+                context("and submitCount equals 1") {
+                    beforeEach {
+                        formControl.instantFormState.submitCount = 1
+                        
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                        
+                        await formControl.syncFormState()
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepSubmitCount)
+                    }
+                    
+                    it("submitCount equals 1") {
+                        let formState = await formControl.formState
+                        expect(formState.submitCount) == 1
+                    }
+                }
+            }
+            
+            context("reset with option .keepIsSubmitted") {
+                context("and form is submitted") {
+                    beforeEach {
+                        formControl.instantFormState.submitCount = 1
+                        formControl.instantFormState.submissionState = .submitted
+                        formControl.instantFormState.isSubmitSuccessful = true
+                        
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                        
+                        await formControl.syncFormState()
+                        await formControl.reset(defaultValues: [
+                            .a: aDefaultValue2,
+                            .b: bDefaultValue2
+                        ], options: .keepIsSubmitted)
+                    }
+                    
+                    it("formState isSubmitted is true") {
+                        let formState = await formControl.formState
+                        expect(formState.submissionState) == .submitted
                     }
                 }
             }
