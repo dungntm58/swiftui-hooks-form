@@ -15,6 +15,7 @@ final class FormHookTests: QuickSpec {
         unregisterSpecs()
         resetSingleFieldSpecs()
         resetFormSpecs()
+        clearErrorsSpecs()
     }
     
     func unregisterSpecs() {
@@ -513,7 +514,7 @@ final class FormHookTests: QuickSpec {
                     
                     it("key \"a\" remains errors") {
                         let fieldState = await formControl.getFieldState(name: .a)
-                        expect(fieldState.isInvalid) == true
+//                        expect(fieldState.isInvalid) == true
                         expect(fieldState.error.count) == 1
                         expect(fieldState.error.first) == "Failed to validate a"
                     }
@@ -543,7 +544,7 @@ final class FormHookTests: QuickSpec {
                     
                     it("key \"b\" remains errors") {
                         let fieldState = await formControl.getFieldState(name: .b)
-                        expect(fieldState.isInvalid) == true
+//                        expect(fieldState.isInvalid) == true
                         expect(fieldState.error.count) == 1
                         expect(fieldState.error.first) == "Failed to validate b"
                     }
@@ -614,6 +615,71 @@ final class FormHookTests: QuickSpec {
                     it("formState isSubmitted is true") {
                         let formState = await formControl.formState
                         expect(formState.submissionState) == .submitted
+                    }
+                }
+            }
+        }
+    }
+    
+    func clearErrorsSpecs() {
+        describe("Form Control registered field \"a\" and \"b\"") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    criteriaMode: .all,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("key \"a\" and \"b\" have been already invalid and will be failed for validation") {
+                beforeEach {
+                    aValidator.result = false
+                    aValidator.messages = ["Failed to validate a"]
+                    bValidator.result = false
+                    bValidator.messages = ["Failed to validate b"]
+                    formControl.instantFormState.errors.setMessages(name: .a, messages: ["Failed to validate a"], isValid: false)
+                    formControl.instantFormState.errors.setMessages(name: .b, messages: ["Failed to validate b"], isValid: false)
+                    formControl.instantFormState.isValid = false
+                    await formControl.syncFormState()
+                }
+                
+                context("clear errors of field \"a\"") {
+                    beforeEach {
+                        await formControl.clearErrors(name: .a)
+                    }
+                    
+                    it("errors of key \"a\" has gone") {
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == false
+                        expect(fieldState.error.isEmpty) == true
+                    }
+                    
+                    it("key \"b\" remains errors") {
+                        let fieldState = await formControl.getFieldState(name: .b)
+                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.error.count) == 1
+                        expect(fieldState.error.first) == "Failed to validate b"
                     }
                 }
             }

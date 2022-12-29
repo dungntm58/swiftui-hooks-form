@@ -208,14 +208,15 @@ public class FormControl<FieldName> where FieldName: Hashable {
         await syncFormState()
     }
 
-    public func clearErrors(names: [FieldName]) {
+    public func clearErrors(names: [FieldName]) async {
         names.forEach { name in
             instantFormState.errors.remove(name: name)
         }
+        await syncFormState()
     }
 
-    public func clearErrors(name: FieldName...) {
-        clearErrors(names: name)
+    public func clearErrors(name: FieldName...) async {
+        await clearErrors(names: name)
     }
 
     public func setValue(name: FieldName, value: Any, options: SetValueOption = []) async {
