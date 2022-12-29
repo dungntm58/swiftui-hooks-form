@@ -6,7 +6,7 @@
   <a href="https://github.com/dungntm58/swiftui-hooks-form/actions"><img alt="test" src="https://github.com/dungntm58/swiftui-hooks-form/workflows/test/badge.svg"></a>
   <a href="https://github.com/dungntm58/swiftui-hooks-form/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/dungntm58/swiftui-hooks-form.svg"/></a>
   <a href="https://developer.apple.com/swift"><img alt="Swift5" src="https://img.shields.io/badge/language-Swift5-orange.svg"></a>
-  <a href="https://developer.apple.com"><img alt="Platform" src="https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS%20%7C-green.svg"></a>
+  <a href="https://developer.apple.com"><img alt="Platform" src="https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20%7C%20tvOS-green.svg"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-black.svg"></a>
 </p>
 
@@ -33,12 +33,11 @@ This library continues working from <a href="https://github.com/ra1028/swiftui-h
 
 |       |Minimum Version|
 |------:|--------------:|
-|Swift  |5.6            |
-|Xcode  |13.3           |
+|Swift  |5.7            |
+|Xcode  |14.0           |
 |iOS    |13.0           |
 |macOS  |10.15          |
 |tvOS   |13.0           |
-|watchOS|6.0            |
 
 ## Installation
 
@@ -87,10 +86,93 @@ And then, include "Hooks" as a dependency for your target:
 <summary><CODE>useForm</CODE></summary>
 
 ```swift
-let form = useForm()
+func useForm<FieldName>(
+    mode: Mode = .onSubmit,
+    reValidateMode: ReValidateMode = .onChange,
+    resolver: Resolver<FieldName>? = nil,
+    context: Any? = nil,
+    shouldUnregister: Bool = true,
+    criteriaMode: CriteriaMode = .all,
+    delayError: Bool = false
+) -> FormControl<FieldName> where FieldName: Hashable
 ```
 
-TBD
+`useForm` is a custom hook for managing forms with ease. It returns a `FormControl` instance.
+
+</details>
+
+<details>
+<summary><CODE>useController</CODE></summary>
+
+```swift
+func useController<FieldName, Value>(
+    name: FieldName,
+    defaultValue: Value,
+    rules: any Validator<Value>,
+    shouldUnregister: Bool = false
+) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable
+```
+
+This custom hook powers `Controller`. Additionally, it shares the same props and methods as `Controller`. It's useful for creating reusable `Controlled` input.
+
+`useController` must be called in a `Context` scope.
+
+```swift
+enum FieldName: Hashable {
+    case username
+    case password
+}
+
+@ViewBuilder
+var hookBody: some View {
+    let form: FormControl<FieldName> = useForm()
+    Context.Provider(value: form) {
+        let (field, fieldState, formState) = useController(name: FieldName.username, defaultValue: "")
+        TextField("Username", text: field.value)
+    }
+}
+```
+
+</details>
+
+---
+
+## SwiftUI Component
+👇 Click to open the description.
+
+<details>
+<summary><CODE>Controller</CODE></summary>
+
+### Controller
+```swift
+import SwiftUI
+
+struct Controller<Content, FieldName, Value>: View where Content: View, FieldName: Hashable {
+    init(
+        name: FieldName,
+        defaultValue: Value,
+        rules: any Validator<Value> = NoopValidator(),
+        @ViewBuilder render: @escaping (ControllerRenderOption<FieldName, Value>) -> Content
+    )
+}
+```
+
+### FieldOption
+
+```swift
+struct FieldOption<FieldName, Value> {
+    let name: FieldName
+    let value: Binding<Value>
+}
+```
+
+### ControllerRenderOption
+
+```swift
+typealias ControllerRenderOption<FieldName, Value> = (field: FieldOption<FieldName, Value>, fieldState: FieldState, formState: FormState<FieldName>) where FieldName: Hashable
+```
+
+It wraps a call of `useController` inside the `hookBody`. Like `useController`, you guarantee `Controller` must be used in a `Context` scope.
 
 </details>
 
