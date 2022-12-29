@@ -4,7 +4,6 @@ SWIFT_FILE_PATHS = Package.swift Sources Tests Example
 TEST_PLATFORM_IOS = iOS Simulator,name=iPhone 14 Pro
 TEST_PLATFORM_MACOS = macOS
 TEST_PLATFORM_TVOS = tvOS Simulator,name=Apple TV 4K (at 1080p) (2nd generation)
-TEST_PLATFORM_WATCHOS = watchOS Simulator,name=Apple Watch Series 8 (45mm)
 LIBRARY_SCHEME = swiftui-hooks-form
 PRODUCT = FormHook
 EXAMPLE_SCHEME = FormHookExample
@@ -44,7 +43,7 @@ resolve-dependencies:
 
 .PHONY: test-library
 test-library:
-	for platform in "$(TEST_PLATFORM_IOS)" "$(TEST_PLATFORM_MACOS)" "$(TEST_PLATFORM_TVOS)" "$(TEST_PLATFORM_WATCHOS)"; do \
+	for platform in "$(TEST_PLATFORM_IOS)" "$(TEST_PLATFORM_MACOS)" "$(TEST_PLATFORM_TVOS)"; do \
 	    xcodebuild test -scheme $(LIBRARY_SCHEME) -destination platform="$$platform"; \
 	done
 	cd Example && xcodebuild test -scheme $(EXAMPLE_SCHEME) -destination platform="$(TEST_PLATFORM_IOS)"

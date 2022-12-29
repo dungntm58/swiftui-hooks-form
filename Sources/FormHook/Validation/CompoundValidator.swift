@@ -72,15 +72,14 @@ private struct CompoundValidator<Value>: Validator {
                 }
                 return results
             case .or:
-                for validator in validators {
-                    let result = await validator.validate(value)
-                    results.append((validator, result))
-                    if validator.isValid(result: result) {
+                for await resultPair in group {
+                    results.append(resultPair)
+                    if resultPair.0.isValid(result: resultPair.1) {
                         return results
                     }
                 }
+                return results
             }
-            return results
         }
         return CompountValidationResult(pairs: pairs, operator: self.operator)
     }

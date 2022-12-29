@@ -1,4 +1,3 @@
-#if os(iOS) || os(tvOS)
 import SwiftUI
 import Quick
 import Nimble
@@ -686,4 +685,3 @@ final class FormHookTests: QuickSpec {
         }
     }
 }
-#endif
