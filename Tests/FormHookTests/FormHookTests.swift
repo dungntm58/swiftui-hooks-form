@@ -15,6 +15,7 @@ final class FormHookTests: QuickSpec {
         resetSingleFieldSpecs()
         resetFormSpecs()
         clearErrorsSpecs()
+        setValueSpecs()
     }
     
     func unregisterSpecs() {
@@ -246,6 +247,18 @@ final class FormHookTests: QuickSpec {
                         it("key \"a\" is not dirty") {
                             let fieldState = await formControl.getFieldState(name: .a)
                             expect(fieldState.isDirty) == false
+                        }
+                        
+                        context("with another default value") {
+                            beforeEach {
+                                await formControl.reset(name: .a, defaultValue: testDefaultValue2)
+                            }
+                            
+                            it("value of field \"a\" changes to the new default value") {
+                                let formState = await formControl.formState
+                                expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue2)) == true
+                                expect(areEqual(first: formState.formValues[.a], second: testDefaultValue2)) == true
+                            }
                         }
                     }
                     
@@ -679,6 +692,108 @@ final class FormHookTests: QuickSpec {
                         expect(fieldState.isInvalid) == true
                         expect(fieldState.error.count) == 1
                         expect(fieldState.error.first) == "Failed to validate b"
+                    }
+                }
+            }
+        }
+    }
+    
+    func setValueSpecs() {
+        describe("Form Control registers a field \"a\" with a default value") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            let testDefaultValue = "%^$#"
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    criteriaMode: .all,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue))
+            }
+            
+            context("set a value for key \"a\"") {
+                context("with a value other than default value (%%%)") {
+                    context("with no option") {
+                        beforeEach {
+                            await formControl.setValue(name: .a, value: "%%%")
+                        }
+                        
+                        it("key \"a\" is dirty") {
+                            let fieldState = await formControl.getFieldState(name: .a)
+                            expect(fieldState.isDirty) == true
+                        }
+                        
+                        it("key \"a\" changes its value") {
+                            let formState = await formControl.formState
+                            expect(areEqual(first: formState.formValues[.a], second: "%%%")) == true
+                        }
+                    }
+                    
+                    context("with option .shouldDirty") {
+                        beforeEach {
+                            await formControl.setValue(name: .a, value: "%%%", options: .shouldDirty)
+                        }
+                        
+                        it("key \"a\" is dirty") {
+                            let fieldState = await formControl.getFieldState(name: .a)
+                            expect(fieldState.isDirty) == true
+                        }
+                    }
+                }
+                
+                context("with a value other than default value") {
+                    context("with no option") {
+                        beforeEach {
+                            await formControl.setValue(name: .a, value: testDefaultValue)
+                        }
+                        
+                        it("key \"a\" isn't dirty") {
+                            let fieldState = await formControl.getFieldState(name: .a)
+                            expect(fieldState.isDirty) == false
+                        }
+                    }
+                    
+                    context("with option .shouldDirty") {
+                        beforeEach {
+                            await formControl.setValue(name: .a, value: testDefaultValue, options: .shouldDirty)
+                        }
+                        
+                        it("key \"a\" is dirty") {
+                            let fieldState = await formControl.getFieldState(name: .a)
+                            expect(fieldState.isDirty) == true
+                        }
+                    }
+                    
+                    context("with option .shouldValidate") {
+                        context("validator returns false") {
+                            beforeEach {
+                                aValidator.result = false
+                                await formControl.setValue(name: .a, value: testDefaultValue, options: .shouldValidate)
+                            }
+                            
+                            it("key \"a\" is invalid") {
+                               let fieldState = await formControl.getFieldState(name: .a)
+                                expect(fieldState.isInvalid) == true
+                            }
+                            
+                            it("formState is invalid") {
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == false
+                            }
+                        }
                     }
                 }
             }

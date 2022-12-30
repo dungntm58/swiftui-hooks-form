@@ -160,9 +160,6 @@ public class FormControl<FieldName> where FieldName: Hashable {
             if !options.contains(.keepErrors) {
                 instantFormState.errors.removeMessagesOnly(name: name)
             }
-            if !options.contains(.keepIsValid) {
-                instantFormState.errors.removeValidityOnly(name: name)
-            }
         }
         if !options.contains(.keepIsValid) {
             instantFormState.isValid = true
@@ -343,16 +340,6 @@ private extension FormControl {
             self.options = options
             self.control = control
             self.value = control.computeValueBinding(name: name, defaultValue: options.defaultValue)
-        }
-
-        var anyValue: Any {
-            value.wrappedValue
-        }
-
-        func computeValidationResult() async -> Bool {
-            let validator = options.rules.eraseToAnyValidator()
-            let result = await validator.validate(value.wrappedValue)
-            return validator.isValid(result: result)
         }
 
         func computeMessages() async -> (Bool, [String]) {

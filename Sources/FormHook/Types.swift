@@ -192,8 +192,5 @@ public struct FieldState {
 }
 
 protocol FieldProtocol {
-    var anyValue: Any { get }
-
-    func computeValidationResult() async -> Bool
     func computeMessages() async -> (Bool, [String])
 }
