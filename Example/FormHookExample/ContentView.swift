@@ -41,8 +41,7 @@ struct ContentView: HookView {
     
     @ViewBuilder
     var hookBody: some View {
-        let form: FormControl<FormFieldName> = useForm()
-        Context.Provider(value: form) {
+        ContextualForm { (form: FormControl<FormFieldName>) in
             Form {
                 VStack(spacing: 16) {
                     ForEach(FormFieldName.allCases, id: \.self) { name in

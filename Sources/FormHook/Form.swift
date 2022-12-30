@@ -393,3 +393,50 @@ private extension FormControl {
         let messages: [String]
     }
 }
+
+public struct ContextualForm<Content, FieldName>: View where Content: View, FieldName: Hashable {
+    let mode: Mode
+    let reValidateMode: ReValidateMode
+    let resolver: Resolver<FieldName>?
+    let context: Any?
+    let shouldUnregister: Bool
+    let criteriaMode: CriteriaMode
+    let delayError: Bool
+    let contentBuilder: (FormControl<FieldName>) -> Content
+
+    public init(mode: Mode = .onSubmit,
+                reValidateMode: ReValidateMode = .onChange,
+                resolver: Resolver<FieldName>? = nil,
+                context: Any? = nil,
+                shouldUnregister: Bool = true,
+                criteriaMode: CriteriaMode = .all,
+                delayError: Bool = false,
+                @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
+    ) {
+        self.mode = mode
+        self.reValidateMode = reValidateMode
+        self.resolver = resolver
+        self.context = context
+        self.shouldUnregister = shouldUnregister
+        self.criteriaMode = criteriaMode
+        self.delayError = delayError
+        self.contentBuilder = content
+    }
+
+    public var body: some View {
+        HookScope {
+            let form = useForm(
+                mode: mode,
+                reValidateMode: reValidateMode,
+                resolver: resolver,
+                context: context,
+                shouldUnregister: shouldUnregister,
+                criteriaMode: criteriaMode,
+                delayError: delayError
+            )
+            Context.Provider(value: form) {
+                contentBuilder(form)
+            }
+        }
+    }
+}
