@@ -41,14 +41,13 @@ public struct ResetOption: OptionSet {
     }
 
     public static let keepDirty = ResetOption(rawValue: 1 << 0)
-    public static let keepDirtyValues = ResetOption(rawValue: 1 << 1)
-    public static let keepIsSubmitted = ResetOption(rawValue: 1 << 2)
-    public static let keepIsValid = ResetOption(rawValue: 1 << 3)
-    public static let keepErrors = ResetOption(rawValue: 1 << 4)
-    public static let keepValues = ResetOption(rawValue: 1 << 5)
-    public static let keepDefaultValues = ResetOption(rawValue: 1 << 6)
-    public static let keepSubmitCount = ResetOption(rawValue: 1 << 7)
-    public static let all: ResetOption = [keepDirty, keepDirtyValues, keepIsSubmitted, keepIsValid, keepErrors, keepValues, keepDefaultValues, keepSubmitCount]
+    public static let keepIsSubmitted = ResetOption(rawValue: 1 << 1)
+    public static let keepIsValid = ResetOption(rawValue: 1 << 2)
+    public static let keepErrors = ResetOption(rawValue: 1 << 3)
+    public static let keepValues = ResetOption(rawValue: 1 << 4)
+    public static let keepDefaultValues = ResetOption(rawValue: 1 << 5)
+    public static let keepSubmitCount = ResetOption(rawValue: 1 << 6)
+    public static let all: ResetOption = [keepDirty, keepIsSubmitted, keepIsValid, keepErrors, keepValues, keepDefaultValues, keepSubmitCount]
 }
 
 public struct SingleResetOption: OptionSet {

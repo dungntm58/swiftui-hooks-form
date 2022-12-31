@@ -16,6 +16,7 @@ final class FormHookTests: QuickSpec {
         resetFormSpecs()
         clearErrorsSpecs()
         setValueSpecs()
+        handleSubmitSpecs()
     }
     
     func unregisterSpecs() {
@@ -792,6 +793,449 @@ final class FormHookTests: QuickSpec {
                             it("formState is invalid") {
                                 let formState = await formControl.formState
                                 expect(formState.isValid) == false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    func handleSubmitSpecs() {
+        describe("Form Control registered field \"a\" and \"b\"") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    criteriaMode: .all,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("with mode .onSubmit") {
+                context("invoke handleSubmit action") {
+                    it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                        do {
+                            try await formControl.handleSubmit(onValid: { _, _ in })
+                            let formState = await formControl.formState
+                            expect(formState.submitCount) == 1
+                            expect(formState.isSubmitSuccessful) == true
+                            expect(formState.submissionState) == .submitted
+                        } catch {
+                            fail()
+                        }
+                    }
+                    
+                    context("key \"a\" is invalid") {
+                        beforeEach {
+                            aValidator.result = false
+                            aValidator.messages = ["Failed to validate a"]
+                        }
+                        
+                        it("formState is invalid") {
+                            do {
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == false
+                                expect(formState.errors[.a]) == ["Failed to validate a"]
+                                expect(formState.errors[.b]).to(beEmpty())
+                            } catch {
+                                fail()
+                            }
+                        }
+                        
+                        it("submitCount is 1, isSubmitSuccessful is false, and submissionState is .submitted") {
+                            do {
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == false
+                                expect(formState.submissionState) == .submitted
+                            } catch {
+                                fail()
+                            }
+                        }
+                        
+                        context("key \"b\" is invalid") {
+                            beforeEach {
+                                bValidator.result = false
+                                bValidator.messages = ["Failed to validate b"]
+                            }
+                            
+                            it("formState is still invalid") {
+                                do {
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == false
+                                    expect(formState.errors[.a]) == ["Failed to validate a"]
+                                    expect(formState.errors[.b]) == ["Failed to validate b"]
+                                } catch {
+                                    fail()
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                context("invoke handleSubmit action with onValid closure throws an error and onInvalid closure is nil") {
+                    it("submitCount is 1, isSubmitSuccessful is false, and submissionState is .submitted") {
+                        do {
+                            try await formControl.handleSubmit(onValid: { _, _ in
+                                throw NSError(domain: "", code: 999)
+                            })
+                            fail()
+                        } catch {
+                            let formState = await formControl.formState
+                            expect(formState.submitCount) == 1
+                            expect(formState.isSubmitSuccessful) == false
+                            expect(formState.submissionState) == .submitted
+                        }
+                    }
+                    
+                    context("key \"a\" is invalid") {
+                        beforeEach {
+                            aValidator.result = false
+                            aValidator.messages = ["Failed to validate a"]
+                        }
+                        
+                        it("formState is invalid") {
+                            do {
+                                try await formControl.handleSubmit(onValid: { _, _ in
+                                    throw NSError(domain: "", code: 999)
+                                })
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == false
+                                expect(formState.errors[.a]) == ["Failed to validate a"]
+                                expect(formState.errors[.b]).to(beEmpty())
+                            } catch {
+                                fail()
+                            }
+                        }
+                    }
+                }
+                
+                context("invoke handleSubmit action with onInvalid closure throws an error") {
+                    context("key \"a\" is invalid") {
+                        beforeEach {
+                            aValidator.result = false
+                            aValidator.messages = ["Failed to validate a"]
+                        }
+                        
+                        it("formState is invalid") {
+                            do {
+                                try await formControl.handleSubmit { _, _ in
+                                    
+                                } onInvalid: { _, _ in
+                                    throw NSError(domain: "", code: 999)
+                                }
+                                fail()
+                            } catch {
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == false
+                                expect(formState.errors[.a]) == ["Failed to validate a"]
+                                expect(formState.errors[.b]).to(beEmpty())
+                            }
+                        }
+                    }
+                }
+            }
+            
+            context("with mode .onChange") {
+                beforeEach {
+                    formControl.options.mode = .onChange
+                }
+                
+                context("with reValidateMode .onSubmit") {
+                    beforeEach {
+                        formControl.options.reValidateMode = .onSubmit
+                    }
+                    
+                    context("invoke handleSubmit action") {
+                        it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                            do {
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == true
+                                expect(formState.submissionState) == .submitted
+                            } catch {
+                                fail()
+                            }
+                        }
+                        
+                        context("formState has been valid") {
+                            context("key \"a\" is invalid") {
+                                beforeEach {
+                                    aValidator.result = false
+                                    aValidator.messages = ["Failed to validate a"]
+                                }
+                                
+                                it("formState is still valid") {
+                                    do {
+                                        try await formControl.handleSubmit(onValid: { _, _ in })
+                                        let formState = await formControl.formState
+                                        expect(formState.isValid) == true
+                                        expect(formState.errors[.a]).to(beNil())
+                                        expect(formState.errors[.b]).to(beNil())
+                                    } catch {
+                                        fail()
+                                    }
+                                }
+                                
+                                it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                                    do {
+                                        try await formControl.handleSubmit(onValid: { _, _ in })
+                                        let formState = await formControl.formState
+                                        expect(formState.submitCount) == 1
+                                        expect(formState.isSubmitSuccessful) == true
+                                        expect(formState.submissionState) == .submitted
+                                    } catch {
+                                        fail()
+                                    }
+                                }
+                                
+                                context("key \"b\" is invalid") {
+                                    beforeEach {
+                                        bValidator.result = false
+                                        bValidator.messages = ["Failed to validate b"]
+                                    }
+                                    
+                                    it("formState is still valid") {
+                                        do {
+                                            try await formControl.handleSubmit(onValid: { _, _ in })
+                                            let formState = await formControl.formState
+                                            expect(formState.isValid) == true
+                                            expect(formState.errors[.a]).to(beNil())
+                                            expect(formState.errors[.b]).to(beNil())
+                                        } catch {
+                                            fail()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        context("formState has been invalid") {
+                            beforeEach {
+                                formControl.instantFormState.errors.setMessages(
+                                    name: .a,
+                                    messages: [
+                                        "Failed to validate a"
+                                    ],
+                                    isValid: false)
+                                await formControl.syncFormState()
+                            }
+                            
+                            context("key \"a\" is invalid") {
+                                beforeEach {
+                                    aValidator.result = false
+                                    aValidator.messages = ["Failed to validate a"]
+                                }
+                                
+                                it("formState is invalid") {
+                                    do {
+                                        try await formControl.handleSubmit(onValid: { _, _ in })
+                                        let formState = await formControl.formState
+                                        expect(formState.isValid) == false
+                                        expect(formState.errors[.a]) == ["Failed to validate a"]
+                                        expect(formState.errors[.b]).to(beNil())
+                                    } catch {
+                                        fail()
+                                    }
+                                }
+                                
+                                it("submitCount is 1, isSubmitSuccessful is false, and submissionState is .submitted") {
+                                    do {
+                                        try await formControl.handleSubmit(onValid: { _, _ in })
+                                        let formState = await formControl.formState
+                                        expect(formState.submitCount) == 1
+                                        expect(formState.isSubmitSuccessful) == false
+                                        expect(formState.submissionState) == .submitted
+                                    } catch {
+                                        fail()
+                                    }
+                                }
+                                
+                                context("key \"b\" is invalid") {
+                                    beforeEach {
+                                        bValidator.result = false
+                                        bValidator.messages = ["Failed to validate b"]
+                                    }
+                                    
+                                    it("formState is still invalid") {
+                                        do {
+                                            try await formControl.handleSubmit(onValid: { _, _ in })
+                                            let formState = await formControl.formState
+                                            expect(formState.isValid) == false
+                                            expect(formState.errors[.a]) == ["Failed to validate a"]
+                                            expect(formState.errors[.b]).to(beNil())
+                                        } catch {
+                                            fail()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    context("invoke handleSubmit action with onValid closure throws an error and onInvalid closure is nil") {
+                        it("submitCount is 1, isSubmitSuccessful is false, and submissionState is .submitted") {
+                            do {
+                                try await formControl.handleSubmit(onValid: { _, _ in
+                                    throw NSError(domain: "", code: 999)
+                                })
+                                fail()
+                            } catch {
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == false
+                                expect(formState.submissionState) == .submitted
+                            }
+                        }
+                        
+                        context("key \"a\" is invalid") {
+                            beforeEach {
+                                aValidator.result = false
+                                aValidator.messages = ["Failed to validate a"]
+                            }
+                            
+                            it("formState is still valid") {
+                                do {
+                                    try await formControl.handleSubmit(onValid: { _, _ in
+                                        throw NSError(domain: "", code: 999)
+                                    })
+                                    fail()
+                                } catch {
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == true
+                                    expect(formState.errors[.a]).to(beNil())
+                                    expect(formState.errors[.b]).to(beNil())
+                                }
+                            }
+                        }
+                    }
+                    
+                    context("invoke handleSubmit action with onInvalid closure throws an error") {
+                        context("key \"a\" is invalid") {
+                            beforeEach {
+                                aValidator.result = false
+                                aValidator.messages = ["Failed to validate a"]
+                            }
+                            
+                            it("formState is still valid") { // cause state of field a isn't getting any error
+                                do {
+                                    try await formControl.handleSubmit { _, _ in
+                                        
+                                    } onInvalid: { _, _ in
+                                        throw NSError(domain: "", code: 999)
+                                    }
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == true
+                                    expect(formState.errors[.a]).to(beNil())
+                                    expect(formState.errors[.b]).to(beNil())
+                                } catch {
+                                    fail()
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                context("with reValidationMode .onChange") {
+                    beforeEach {
+                        formControl.options.reValidateMode = .onChange
+                    }
+                    
+                    context("invoke handleSubmit action") {
+                        context("key \"a\" is invalid") {
+                            beforeEach {
+                                aValidator.result = false
+                                aValidator.messages = ["Failed to validate a"]
+                            }
+                            
+                            it("formState is still valid") {
+                                do {
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == true
+                                    expect(formState.errors[.a]).to(beNil())
+                                    expect(formState.errors[.b]).to(beNil())
+                                } catch {
+                                    fail()
+                                }
+                            }
+                            
+                            it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                                do {
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.submitCount) == 1
+                                    expect(formState.isSubmitSuccessful) == true
+                                    expect(formState.submissionState) == .submitted
+                                } catch {
+                                    fail()
+                                }
+                            }
+                        }
+                    }
+                    
+                    context("invoke handleSubmit action with onInvalid closure throws an error and errors has been empty before") {
+                        context("key \"a\" is invalid") {
+                            beforeEach {
+                                aValidator.result = false
+                                aValidator.messages = ["Failed to validate a"]
+                            }
+                            
+                            it("formState is invalid") {
+                                do {
+                                    try await formControl.handleSubmit { _, _ in
+                                        
+                                    } onInvalid: { _, _ in
+                                        throw NSError(domain: "", code: 999)
+                                    }
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == true
+                                    expect(formState.errors[.a]).to(beNil())
+                                    expect(formState.errors[.b]).to(beNil())
+                                } catch {
+                                    fail()
+                                }
+                            }
+                            
+                            it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                                do {
+                                    try await formControl.handleSubmit { _, _ in
+                                        
+                                    } onInvalid: { _, _ in
+                                        throw NSError(domain: "", code: 999)
+                                    }
+                                    let formState = await formControl.formState
+                                    expect(formState.submitCount) == 1
+                                    expect(formState.isSubmitSuccessful) == true
+                                    expect(formState.submissionState) == .submitted
+                                } catch {
+                                    fail()
+                                }
                             }
                         }
                     }

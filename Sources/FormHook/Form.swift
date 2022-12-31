@@ -127,15 +127,23 @@ public class FormControl<FieldName> where FieldName: Hashable {
         do {
             if isOveralValid {
                 try await onValid(instantFormState.formValues, errors)
-            } else {
-                try await onInvalid?(instantFormState.formValues, errors)
+            } else if let onInvalid {
+                try await onInvalid(instantFormState.formValues, errors)
             }
+            instantFormState.isValid = isOveralValid
+            instantFormState.isSubmitSuccessful = errors.errorFields.isEmpty
             instantFormState.errors = errors
             instantFormState.submitCount += 1
             instantFormState.submissionState = .submitted
             await syncFormState()
         } catch {
+            instantFormState.isValid = isOveralValid
             instantFormState.submissionState = preservedSubmissionState
+            instantFormState.isSubmitSuccessful = false
+            instantFormState.errors = errors
+            instantFormState.submitCount += 1
+            instantFormState.submissionState = .submitted
+            await syncFormState()
             throw error
         }
     }

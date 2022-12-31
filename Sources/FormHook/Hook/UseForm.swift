@@ -47,8 +47,8 @@ public struct FormOption<FieldName>: Equatable where FieldName: Hashable {
         && lhs.delayError == rhs.delayError
     }
 
-    let mode: Mode
-    let reValidateMode: ReValidateMode
+    var mode: Mode
+    var reValidateMode: ReValidateMode
     let resolver: Resolver<FieldName>?
     let context: Any?
     let shouldUnregister: Bool
