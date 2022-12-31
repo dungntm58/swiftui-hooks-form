@@ -7,6 +7,7 @@
 
 import Foundation
 import XCTest
+import RegexBuilder
 
 @testable import FormHook
 
@@ -92,6 +93,54 @@ class ValidationTests: XCTestCase {
         XCTAssertTrue(result)
         result = await LengthRangeValidator(minLength: 1, maxLength: 3, messageGenerator(_:)).validate([1, 2, 3])
         XCTAssertTrue(result)
+    }
+
+    func testPatternMatchingValidator() async {
+        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPatternMatchingValidator = PatternMatchingValidator<String>(pattern: emailRegEx, messageGenerator(_:))
+        var result = await emailPatternMatchingValidator.validate("abc@domain.com")
+        XCTAssertTrue(result)
+        
+        result = await emailPatternMatchingValidator.validate("domain.com")
+        XCTAssertFalse(result)
+    }
+
+    @available(macOS 13.0, iOS 16.0, tvOS 16.0, *)
+    func testRegexMatchingValidator() async {
+        let emailRegexMatchingValidator = RegexMatchingValidator<Substring>(
+            regex: Regex {
+                OneOrMore {
+                    CharacterClass(
+                        .anyOf("._%+-"),
+                        ("A"..."Z"),
+                        ("0"..."9"),
+                        ("a"..."z")
+                    )
+                }
+                "@"
+                OneOrMore {
+                    CharacterClass(
+                        .anyOf(".-"),
+                        ("A"..."Z"),
+                        ("a"..."z"),
+                        ("0"..."9")
+                    )
+                }
+                "."
+                Repeat(2...64) {
+                    CharacterClass(
+                        ("A"..."Z"),
+                        ("a"..."z")
+                    )
+                }
+            }
+              .anchorsMatchLineEndings(),
+            messageGenerator(_:))
+        var result = await emailRegexMatchingValidator.validate("abc@domain.com")
+        XCTAssertTrue(result)
+        
+        result = await emailRegexMatchingValidator.validate("domain.com")
+        XCTAssertFalse(result)
     }
 }
 
