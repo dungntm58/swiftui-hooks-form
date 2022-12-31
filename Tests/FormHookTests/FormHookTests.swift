@@ -527,7 +527,7 @@ final class FormHookTests: QuickSpec {
                     
                     it("key \"a\" remains errors") {
                         let fieldState = await formControl.getFieldState(name: .a)
-//                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.isInvalid) == true
                         expect(fieldState.error.count) == 1
                         expect(fieldState.error.first) == "Failed to validate a"
                     }
@@ -557,7 +557,7 @@ final class FormHookTests: QuickSpec {
                     
                     it("key \"b\" remains errors") {
                         let fieldState = await formControl.getFieldState(name: .b)
-//                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.isInvalid) == true
                         expect(fieldState.error.count) == 1
                         expect(fieldState.error.first) == "Failed to validate b"
                     }
