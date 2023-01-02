@@ -35,7 +35,8 @@ let package = Package(
             dependencies: [
                 "FormHook",
                 "Quick",
-                "Nimble"
+                "Nimble",
+                .product(name: "Hooks", package: "swiftui-hooks")
             ]),
     ]
 )

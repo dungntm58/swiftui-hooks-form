@@ -25,23 +25,29 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
     let name: FieldName
     let defaultValue: Value
     let rules: any Validator<Value>
+    let shouldUnregister: Bool
+    let unregisterOption: UnregisterOption
     let render: (ControllerRenderOption<FieldName, Value>) -> Content
 
     public init(
         name: FieldName,
         defaultValue: Value,
         rules: any Validator<Value> = NoopValidator(),
+        shouldUnregister: Bool = true,
+        unregisterOption: UnregisterOption = [],
         @ViewBuilder render: @escaping (ControllerRenderOption<FieldName, Value>) -> Content
     ) {
         self.name = name
         self.defaultValue = defaultValue
         self.rules = rules
         self.render = render
+        self.shouldUnregister = true
+        self.unregisterOption = unregisterOption
     }
 
     public var body: some View {
         HookScope {
-            let renderOption = useController(name: name, defaultValue: defaultValue, rules: rules)
+            let renderOption = useController(name: name, defaultValue: defaultValue, rules: rules, shouldUnregister: shouldUnregister, unregisterOption: unregisterOption)
             render(renderOption)
         }
     }

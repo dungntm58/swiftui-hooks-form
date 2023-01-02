@@ -14,7 +14,6 @@ public func useForm<FieldName>(
     resolver: Resolver<FieldName>? = nil,
     context: Any? = nil,
     shouldUnregister: Bool = true,
-    criteriaMode: CriteriaMode = .all,
     delayError: Bool = false
 ) -> FormControl<FieldName> where FieldName: Hashable {
     useForm(
@@ -24,7 +23,6 @@ public func useForm<FieldName>(
             resolver: resolver,
             context: context,
             shouldUnregister: shouldUnregister,
-            criteriaMode: criteriaMode,
             delayError: delayError
         )
     )
@@ -37,22 +35,12 @@ public func useForm<FieldName>(_ options: FormOption<FieldName>) -> FormControl<
     return formRef.current
 }
 
-public struct FormOption<FieldName>: Equatable where FieldName: Hashable {
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.mode == rhs.mode
-        && lhs.reValidateMode == rhs.reValidateMode
-        && areEqual(first: lhs.context, second: rhs.context)
-        && lhs.shouldUnregister == rhs.shouldUnregister
-        && lhs.criteriaMode == rhs.criteriaMode
-        && lhs.delayError == rhs.delayError
-    }
-
+public struct FormOption<FieldName> where FieldName: Hashable {
     var mode: Mode
     var reValidateMode: ReValidateMode
     let resolver: Resolver<FieldName>?
     let context: Any?
     let shouldUnregister: Bool
-    let criteriaMode: CriteriaMode
     let delayError: Bool
 
     init(mode: Mode,
@@ -60,7 +48,6 @@ public struct FormOption<FieldName>: Equatable where FieldName: Hashable {
          resolver: Resolver<FieldName>?,
          context: Any?,
          shouldUnregister: Bool,
-         criteriaMode: CriteriaMode,
          delayError: Bool
     ) {
         self.mode = mode
@@ -68,7 +55,6 @@ public struct FormOption<FieldName>: Equatable where FieldName: Hashable {
         self.resolver = resolver
         self.context = context
         self.shouldUnregister = shouldUnregister
-        self.criteriaMode = criteriaMode
         self.delayError = delayError
     }
 }
@@ -90,22 +76,8 @@ public typealias ReValidateMode = Mode
 public typealias Resolver<FieldName> = (
     _ values: ResolverValue<FieldName>,
     _ context: Any?,
-    _ options: ResolverOption<FieldName>
+    _ fieldNames: [FieldName]
 ) async -> Result<ResolverValue<FieldName>, ResolverError<FieldName>> where FieldName: Hashable
 
 public typealias ResolverValue = FormValue
-
-public struct ResolverError<FieldName>: Error where FieldName: Hashable {
-    let values: ResolverValue<FieldName>
-    let errors: FormError<FieldName>
-}
-
-public enum CriteriaMode {
-    case firstError
-    case all
-}
-
-public struct ResolverOption<FieldName> {
-    public let criteriaMode: CriteriaMode
-    public let names: [FieldName]
-}
+public typealias ResolverError = FormError

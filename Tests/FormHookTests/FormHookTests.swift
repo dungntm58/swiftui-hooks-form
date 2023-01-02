@@ -33,7 +33,6 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    criteriaMode: .all,
                     delayError: true
                 )
                 formControl = .init(options: options, formState: .init(
@@ -205,7 +204,6 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    criteriaMode: .all,
                     delayError: true
                 )
                 formControl = .init(options: options, formState: .init(
@@ -342,7 +340,6 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    criteriaMode: .all,
                     delayError: true
                 )
                 formControl = .init(options: options, formState: .init(
@@ -650,7 +647,6 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    criteriaMode: .all,
                     delayError: true
                 )
                 formControl = .init(options: options, formState: .init(
@@ -713,7 +709,6 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    criteriaMode: .all,
                     delayError: true
                 )
                 formControl = .init(options: options, formState: .init(
@@ -817,7 +812,6 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    criteriaMode: .all,
                     delayError: true
                 )
                 formControl = .init(options: options, formState: .init(

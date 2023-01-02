@@ -50,7 +50,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if !options.contains(.keepDirty) {
             names.forEach { instantFormState.dirtyFields.remove($0) }
         }
-        if !self.options.shouldUnregister && !options.contains(.keepDefaultValue) {
+        if !options.contains(.keepDefaultValue) {
             names.forEach { instantFormState.defaultValues[$0] = nil }
         }
         if options.contains(.keepIsValid) {
@@ -72,50 +72,79 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if options.mode.contains(.onSubmit) {
             instantFormState.isValidating = true
             await syncFormState()
-            (isOveralValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group -> (Bool, FormError<FieldName>) in
-                var errorFields: Set<FieldName> = .init()
-                var messages: [FieldName: [String]] = [:]
-                var isOveralValid = true
-
-                for (key, field) in fields {
-                    group.addTask {
-                        let (isValid, messages) = await field.computeMessages()
-                        return KeyValidationResult(key: key, isValid: isValid, messages: messages)
-                    }
-                }
-                for await keyResult in group {
-                    messages[keyResult.key] = keyResult.messages
-                    if keyResult.isValid {
-                        continue
-                    }
-                    errorFields.insert(keyResult.key)
+            if let resolver = options.resolver {
+                let result = await resolver(
+                    instantFormState.formValues,
+                    options.context,
+                    Array(fields.keys)
+                )
+                switch result {
+                case .success:
+                    isOveralValid = true
+                    errors = .init()
+                case .failure(let e):
                     isOveralValid = false
+                    errors = e
                 }
-                return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
+            } else {
+                (isOveralValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group -> (Bool, FormError<FieldName>) in
+                    var errorFields: Set<FieldName> = .init()
+                    var messages: [FieldName: [String]] = [:]
+                    var isOveralValid = true
+                    
+                    for (key, field) in fields {
+                        group.addTask {
+                            let (isValid, messages) = await field.computeMessages()
+                            return KeyValidationResult(key: key, isValid: isValid, messages: messages)
+                        }
+                    }
+                    for await keyResult in group {
+                        messages[keyResult.key] = keyResult.messages
+                        if keyResult.isValid {
+                            continue
+                        }
+                        errorFields.insert(keyResult.key)
+                        isOveralValid = false
+                    }
+                    return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
+                }
             }
             instantFormState.isValidating = false
             await syncFormState()
         } else if options.reValidateMode.contains(.onSubmit) {
             instantFormState.isValidating = true
             await syncFormState()
-            (isOveralValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group -> (Bool, FormError<FieldName>) in
-                var errorFields: Set<FieldName> = .init()
-                var messages: [FieldName: [String]] = [:]
-                var isOveralValid = true
-                for (key, field) in fields where instantFormState.errors.errorFields.contains(key) {
-                    group.addTask {
-                        let (isValid, messages) = await field.computeMessages()
-                        return KeyValidationResult(key: key, isValid: isValid, messages: messages)
-                    }
+            if let resolver = options.resolver {
+                let names = fields.keys.filter(instantFormState.errors.errorFields.contains)
+                let result = await resolver(instantFormState.formValues, options.context, names)
+                switch result {
+                case .success:
+                    isOveralValid = true
+                    errors = .init()
+                case .failure(let e):
+                    isOveralValid = false
+                    errors = e
                 }
-                for await keyResult in group {
-                    messages[keyResult.key] = keyResult.messages
-                    if !keyResult.isValid {
-                        errorFields.insert(keyResult.key)
-                        isOveralValid = false
+            } else {
+                (isOveralValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group -> (Bool, FormError<FieldName>) in
+                    var errorFields: Set<FieldName> = .init()
+                    var messages: [FieldName: [String]] = [:]
+                    var isOveralValid = true
+                    for (key, field) in fields where instantFormState.errors.errorFields.contains(key) {
+                        group.addTask {
+                            let (isValid, messages) = await field.computeMessages()
+                            return KeyValidationResult(key: key, isValid: isValid, messages: messages)
+                        }
                     }
+                    for await keyResult in group {
+                        messages[keyResult.key] = keyResult.messages
+                        if !keyResult.isValid {
+                            errorFields.insert(keyResult.key)
+                            isOveralValid = false
+                        }
+                    }
+                    return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
                 }
-                return (isOveralValid, FormError(errorFields: errorFields, messages: messages))
             }
             instantFormState.isValidating = false
             await syncFormState()
@@ -289,13 +318,13 @@ extension FormControl {
         }
         if let resolver = options.resolver {
             let isValid: Bool
-            let result = await resolver(formState.formValues, options.context, .init(criteriaMode: options.criteriaMode, names: Array(formState.defaultValues.keys)))
+            let result = await resolver(formState.formValues, options.context, Array(formState.defaultValues.keys))
             switch result {
             case .success:
                 isValid = true
-            case .failure(let error):
+            case .failure(let e):
                 isValid = false
-                instantFormState.errors = error.errors
+                instantFormState.errors = e
             }
             instantFormState.isValid = isValid
         } else {
@@ -395,7 +424,6 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
     let resolver: Resolver<FieldName>?
     let context: Any?
     let shouldUnregister: Bool
-    let criteriaMode: CriteriaMode
     let delayError: Bool
     let contentBuilder: (FormControl<FieldName>) -> Content
 
@@ -404,7 +432,6 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
                 resolver: Resolver<FieldName>? = nil,
                 context: Any? = nil,
                 shouldUnregister: Bool = true,
-                criteriaMode: CriteriaMode = .all,
                 delayError: Bool = false,
                 @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
     ) {
@@ -413,7 +440,6 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
         self.resolver = resolver
         self.context = context
         self.shouldUnregister = shouldUnregister
-        self.criteriaMode = criteriaMode
         self.delayError = delayError
         self.contentBuilder = content
     }
@@ -426,7 +452,6 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
                 resolver: resolver,
                 context: context,
                 shouldUnregister: shouldUnregister,
-                criteriaMode: criteriaMode,
                 delayError: delayError
             )
             Context.Provider(value: form) {
