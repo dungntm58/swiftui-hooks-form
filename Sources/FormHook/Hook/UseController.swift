@@ -16,7 +16,7 @@ public func useController<FieldName, Value>(
     unregisterOption: UnregisterOption = []
 ) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
     let form = useContext(Context<FormControl<FieldName>>.self)
-    let registration = form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue))
+    let registration = form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister))
 
     useEffect {{
         guard shouldUnregister else { return }

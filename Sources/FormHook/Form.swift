@@ -41,6 +41,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if self.options.shouldUnregister {
             names.forEach { fields[$0] = nil }
         }
+        names.forEach {
+            if let field = fields[$0] as? Field<FieldName>, field.options.shouldUnregister {
+                fields[$0] = nil
+            }
+        }
         if !options.contains(.keepValue) {
             names.forEach { instantFormState.formValues[$0] = nil }
         }
@@ -277,28 +282,47 @@ public class FormControl<FieldName> where FieldName: Hashable {
         await formState.getFieldState(name: name)
     }
 
+    @discardableResult
     public func trigger(names: [FieldName]) async -> Bool {
+        let validationNames = names.isEmpty ? fields.map { $0.key } : names
         instantFormState.isValidating = true
         await syncFormState()
-        let (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
-            var errors = instantFormState.errors
-            for name in names {
-                guard let field = fields[name] else {
-                    continue
-                }
-                group.addTask {
-                    let (isValid, messages) = await field.computeMessages()
-                    return KeyValidationResult(key: name, isValid: isValid, messages: messages)
-                }
+        let isValid: Bool
+        let errors: FormError<FieldName>
+        if let resolver = options.resolver {
+            let result = await resolver(instantFormState.formValues, options.context, validationNames)
+            switch result {
+            case .success:
+                isValid = true
+                errors = instantFormState.errors
+            case .failure(let e):
+                isValid = false
+                errors = instantFormState.errors.rewrite(from: e)
             }
-            var isValid = true
-            for await keyResult in group {
-                errors.setMessages(name: keyResult.key, messages: keyResult.messages, isValid: keyResult.isValid)
-                if !keyResult.isValid {
-                    isValid = false
+        } else {
+            (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
+                var errors = instantFormState.errors
+                for name in validationNames {
+                    guard let field = fields[name] else {
+                        continue
+                    }
+                    group.addTask {
+                        let (isValid, messages) = await field.computeMessages()
+                        return KeyValidationResult(key: name, isValid: isValid, messages: messages)
+                    }
                 }
+                var isValid = true
+                for await keyResult in group {
+                    errors.setMessages(name: keyResult.key, messages: keyResult.messages, isValid: keyResult.isValid)
+                    if !keyResult.isValid {
+                        isValid = false
+                    }
+                }
+                return (isValid, errors)
             }
-            return (isValid, errors)
+        }
+        if !isValid {
+            instantFormState.isValid = false
         }
         instantFormState.isValidating = false
         instantFormState.errors = errors
@@ -306,6 +330,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
         return isValid
     }
 
+    @discardableResult
     public func trigger(name: FieldName...) async -> Bool {
         await trigger(names: name)
     }
@@ -314,7 +339,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
 extension FormControl {
     func updateValid() async {
         guard instantFormState.isValid else {
-            return await syncFormState()
+            return
         }
         if let resolver = options.resolver {
             let isValid: Bool

@@ -17,6 +17,7 @@ final class FormHookTests: QuickSpec {
         clearErrorsSpecs()
         setValueSpecs()
         handleSubmitSpecs()
+        triggerSpecs()
     }
     
     func unregisterSpecs() {
@@ -1232,6 +1233,116 @@ final class FormHookTests: QuickSpec {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    
+    func triggerSpecs() {
+        describe("Form Control registered field \"a\" and \"b\"") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("trigger field \"a\" and validation of \"a\" returns false") {
+                beforeEach {
+                    aValidator.result = false
+                    aValidator.messages = ["Failed to validate a"]
+                }
+                
+                it("result of validation \"a\" is false, and errors of \"a\" equals [\"Failed to validate a\"]") {
+                    let result = await formControl.trigger(name: .a)
+                    expect(result) == false
+                    
+                    let fieldState = await formControl.getFieldState(name: .a)
+                    expect(fieldState.isInvalid) == true
+                    expect(fieldState.error) == ["Failed to validate a"]
+                }
+                
+                it("key \"b\" is still valid") {
+                    await formControl.trigger(name: .a)
+                    
+                    let fieldState = await formControl.getFieldState(name: .b)
+                    expect(fieldState.isInvalid) == false
+                    expect(fieldState.error).to(beEmpty())
+                }
+            }
+            
+            context("trigger by default and validation of \"a\" returns false") {
+                beforeEach {
+                    aValidator.result = false
+                    aValidator.messages = ["Failed to validate a"]
+                }
+                
+                it("result of validation \"a\" is false, and errors of \"a\" equals [\"Failed to validate a\"]") {
+                    let result = await formControl.trigger()
+                    expect(result) == false
+                    
+                    let fieldState = await formControl.getFieldState(name: .a)
+                    expect(fieldState.isInvalid) == true
+                    expect(fieldState.error) == ["Failed to validate a"]
+                }
+                
+                it("key \"b\" is still valid") {
+                    await formControl.trigger()
+                    
+                    let fieldState = await formControl.getFieldState(name: .b)
+                    expect(fieldState.isInvalid) == false
+                    expect(fieldState.error).to(beEmpty())
+                }
+            }
+            
+            context("unregister \"b\"") {
+                beforeEach {
+                    await formControl.unregister(name: .b)
+                }
+                
+                context("trigger both key \"a\" and \"b\", and validation of \"a\" returns false") {
+                    beforeEach {
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                    }
+                    
+                    it("result of validation \"a\" is false, and errors of \"a\" equals [\"Failed to validate a\"]") {
+                        let result = await formControl.trigger(name: .a, .b)
+                        expect(result) == false
+                        
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.error) == ["Failed to validate a"]
+                    }
+                    
+                    it("key \"b\" is undefined") {
+                        await formControl.trigger(name: .a, .b)
+                        
+                        let formState = await formControl.formState
+                        expect(formState.defaultValues[.b]).to(beNil())
+                        expect(formState.formValues[.b]).to(beNil())
                     }
                 }
             }

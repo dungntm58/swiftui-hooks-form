@@ -11,10 +11,12 @@ import SwiftUI
 public struct RegisterOption<Value> {
     let rules: any Validator<Value>
     let defaultValue: Value
+    let shouldUnregister: Bool
 
-    public init(rules: any Validator<Value>, defaultValue: Value) {
+    public init(rules: any Validator<Value>, defaultValue: Value, shouldUnregister: Bool = true) {
         self.rules = rules
         self.defaultValue = defaultValue
+        self.shouldUnregister = shouldUnregister
     }
 }
 
@@ -110,6 +112,15 @@ public struct FormError<FieldName>: Equatable where FieldName: Hashable {
 
     mutating func removeValidityOnly(name: FieldName) {
         self.errorFields.remove(name)
+    }
+
+    func rewrite(from other: Self) -> Self {
+        let errorFields = errorFields.union(other.errorFields)
+        var newMessages = messages
+        for (key, newValue) in other.messages {
+            newMessages[key] = newValue
+        }
+        return Self(errorFields: errorFields, messages: newMessages)
     }
 }
 
