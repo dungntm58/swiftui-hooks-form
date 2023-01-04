@@ -11,6 +11,7 @@ enum TestFieldName: String {
 
 final class FormHookTests: QuickSpec {
     override func spec() {
+        registerSpecs()
         unregisterSpecs()
         resetSingleFieldSpecs()
         resetFormSpecs()
@@ -18,6 +19,68 @@ final class FormHookTests: QuickSpec {
         setValueSpecs()
         handleSubmitSpecs()
         triggerSpecs()
+    }
+    
+    func registerSpecs() {
+        describe("Form Control") {
+            var formControl: FormControl<TestFieldName>!
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+            }
+            
+            context("registers a field \"a\" with a default value") {
+                var aValidator: MockValidator<String, Bool>!
+                let testDefaultValue = "%^$#"
+                let testDefaultValue2 = "%^$#@"
+                var aBinder: FieldRegistration<String>!
+                
+                beforeEach {
+                    aValidator = MockValidator<String, Bool>(result: true)
+                    aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue))
+                }
+                
+                context("value for key \"a\" changes") {
+                    beforeEach {
+                        aBinder.wrappedValue = "a"
+                        await formControl.syncFormState()
+                    }
+                    
+                    it("key \"a\" and formState are dirty") {
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isDirty) == true
+                        
+                        let formState = await formControl.formState
+                        expect(formState.isDirty) == true
+                    }
+                }
+                
+                context("registers field \"a\" with other options") {
+                    beforeEach {
+                        aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue2))
+                        await formControl.syncFormState()
+                    }
+                    
+                    it("field \"a\" changes its value") {
+                        let formState = await formControl.formState
+                        expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue2)) == true
+                        expect(areEqual(first: formState.formValues[.a], second: testDefaultValue2)) == true
+                    }
+                }
+            }
+        }
     }
     
     func unregisterSpecs() {
@@ -195,7 +258,7 @@ final class FormHookTests: QuickSpec {
             var aValidator: MockValidator<String, Bool>!
             let testDefaultValue = "%^$#"
             let testDefaultValue2 = "%^$#*("
-            var aBinder: Binding<String>!
+            var aBinder: FieldRegistration<String>!
             
             beforeEach {
                 var formState: FormState<TestFieldName> = .init()
@@ -330,8 +393,8 @@ final class FormHookTests: QuickSpec {
             let aDefaultValue2 = "%^$#)"
             let bDefaultValue2 = "%^$#*()"
             
-            var aBinder: Binding<String>!
-            var bBinder: Binding<String>!
+            var aBinder: FieldRegistration<String>!
+            var bBinder: FieldRegistration<String>!
             
             beforeEach {
                 var formState: FormState<TestFieldName> = .init()
