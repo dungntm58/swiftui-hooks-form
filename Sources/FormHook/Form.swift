@@ -42,7 +42,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
             names.forEach { fields[$0] = nil }
         }
         names.forEach {
-            if let field = fields[$0] as? Field<FieldName>, field.options.shouldUnregister {
+            if fields[$0]?.shouldUnregister ?? false {
                 fields[$0] = nil
             }
         }
@@ -402,6 +402,10 @@ private extension FormControl {
             self.options = options
             self.control = control
             self.value = control.computeValueBinding(name: name, defaultValue: options.defaultValue)
+        }
+
+        var shouldUnregister: Bool {
+            options.shouldUnregister
         }
 
         func computeMessages() async -> (Bool, [String]) {

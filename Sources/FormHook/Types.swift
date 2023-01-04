@@ -202,5 +202,6 @@ public struct FieldState {
 }
 
 protocol FieldProtocol {
+    var shouldUnregister: Bool { get }
     func computeMessages() async -> (Bool, [String])
 }

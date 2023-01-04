@@ -40,8 +40,8 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     var reValidateMode: ReValidateMode
     let resolver: Resolver<FieldName>?
     let context: Any?
-    let shouldUnregister: Bool
-    let delayError: Bool
+    var shouldUnregister: Bool
+    var delayError: Bool
 
     init(mode: Mode,
          reValidateMode: ReValidateMode,

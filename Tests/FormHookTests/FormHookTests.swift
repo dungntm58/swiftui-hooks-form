@@ -84,6 +84,45 @@ final class FormHookTests: QuickSpec {
     }
     
     func unregisterSpecs() {
+        describe("Form Control with shouldUnregister equals false registers a field \"a\" with a default value") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            let testDefaultValue = "%^$#"
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: false,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue))
+            }
+
+            context("then unregister field \"a\"") {
+                context("key \"a\" hasn't been configured") {
+                    beforeEach {
+                        await formControl.unregister(name: .a)
+                    }
+                    
+                    it("value of key \"a\" will be removed") {
+                        let formState = await formControl.formState
+                        expect(formState.defaultValues[.a]).to(beNil())
+                        expect(formState.formValues[.a]).to(beNil())
+                    }
+                }
+            }
+        }
+
         describe("Form Control registers a field \"a\" with a default value") {
             var formControl: FormControl<TestFieldName>!
             var aValidator: MockValidator<String, Bool>!
@@ -1309,6 +1348,7 @@ final class FormHookTests: QuickSpec {
             var bValidator: MockValidator<String, Bool>!
             let aDefaultValue = "%^$#"
             let bDefaultValue = "%^$#*("
+            var aBinder: FieldRegistration<String>!
             
             beforeEach {
                 var formState: FormState<TestFieldName> = .init()
@@ -1326,7 +1366,7 @@ final class FormHookTests: QuickSpec {
                 ))
                 
                 aValidator = MockValidator<String, Bool>(result: true)
-                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
                 
                 bValidator = MockValidator<String, Bool>(result: true)
                 _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
@@ -1406,6 +1446,79 @@ final class FormHookTests: QuickSpec {
                         let formState = await formControl.formState
                         expect(formState.defaultValues[.b]).to(beNil())
                         expect(formState.formValues[.b]).to(beNil())
+                    }
+                }
+            }
+            
+            context("changes mode to .onChange") {
+                beforeEach {
+                    formControl.options.mode = .onChange
+                }
+                
+                context("field \"a\" changes its value, and will be invalid") {
+                    beforeEach {
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                        aBinder.wrappedValue = "a"
+                        await formControl.syncFormState()
+                    }
+                    
+                    it("field \"a\" is triggered, and is invalid") {
+                        try? await Task.sleep(nanoseconds: 2_000_000)
+                        
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == true
+                        
+                        let formState = await formControl.formState
+                        expect(formState.errors[.a]) == ["Failed to validate a"]
+                    }
+                }
+            }
+            
+            context("key \"a\" has been already invalid, and validation of \"a\" returns true") {
+                beforeEach {
+                    formControl.instantFormState.errors.setMessages(
+                        name: .a, messages: [
+                            "Failed to validate a"
+                        ],
+                        isValid: false
+                    )
+                    aValidator.result = true
+                    aValidator.messages = []
+                    await formControl.syncFormState()
+                }
+                
+                context("changes reValidationMode to .onChange, and key \"a\" changes its value") {
+                    beforeEach {
+                        formControl.options.reValidateMode = .onChange
+                        aBinder.wrappedValue = "a"
+                    }
+                    
+                    it("field \"a\" is triggered, and is valid") {
+                        try? await Task.sleep(nanoseconds: 2_000_000)
+                        
+                        let formState = await formControl.formState
+                        expect(formState.errors[.a]) == []
+                        
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == false
+                    }
+                }
+                
+                context("changes reValidationMode to .onSubmit, and key \"a\" changes its value") {
+                    beforeEach {
+                        formControl.options.reValidateMode = .onSubmit
+                        aBinder.wrappedValue = "a"
+                    }
+                    
+                    it("field \"a\" is triggered, and is still invalid") {
+                        try? await Task.sleep(nanoseconds: 2_000_000)
+                        
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == true
+                        
+                        let formState = await formControl.formState
+                        expect(formState.errors[.a]) == ["Failed to validate a"]
                     }
                 }
             }
