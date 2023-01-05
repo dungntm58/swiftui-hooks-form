@@ -19,6 +19,7 @@ final class FormHookTests: QuickSpec {
         setValueSpecs()
         handleSubmitSpecs()
         triggerSpecs()
+        resolverSpecs()
     }
     
     func registerSpecs() {
@@ -292,6 +293,67 @@ final class FormHookTests: QuickSpec {
     }
     
     func resetSingleFieldSpecs() {
+        describe("Form Control registered field \"a\" and \"b\" with non-nil resolver") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            
+            let resolverProxy = ResolverProxy<TestFieldName>(value: [
+                .a: aDefaultValue,
+                .b: bDefaultValue
+            ])
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: resolverProxy.resolver(values:context:fieldNames:),
+                    context: nil,
+                    shouldUnregister: true,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("formState is invalid") {
+                beforeEach {
+                    formControl.instantFormState.isValid = false
+                    formControl.instantFormState.errors.setMessages(
+                        name: .a,
+                        messages: [
+                            "Failed to validate a"
+                        ],
+                        isValid: false
+                    )
+                    await formControl.syncFormState()
+                }
+                
+                context("reset field \"b\" with default option") {
+                    beforeEach {
+                        await formControl.reset(name: .b)
+                    }
+                    
+                    it("field \"a\" is still invalid") {
+                        let fieldState = await formControl.getFieldState(name: .a)
+                        expect(fieldState.isInvalid) == true
+                        expect(fieldState.error) == ["Failed to validate a"]
+                    }
+                }
+            }
+        }
+        
         describe("Form Control registered field \"a\"") {
             var formControl: FormControl<TestFieldName>!
             var aValidator: MockValidator<String, Bool>!
@@ -1523,5 +1585,157 @@ final class FormHookTests: QuickSpec {
                 }
             }
         }
+    }
+    
+    func resolverSpecs() {
+        describe("Form Control registered field \"a\" and \"b\" with non-nil resolver") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            
+            let resolverProxy = ResolverProxy<TestFieldName>(value: [
+                .a: aDefaultValue,
+                .b: bDefaultValue
+            ])
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: resolverProxy.resolver(values:context:fieldNames:),
+                    context: nil,
+                    shouldUnregister: true,
+                    delayError: true
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("resolver indicates all fields are valid") {
+                context("validation of \"a\" returns failure") {
+                    beforeEach {
+                        aValidator.result = false
+                        aValidator.messages = ["Failed to validate a"]
+                    }
+                    
+                    context("reset field \"a\" with default options") {
+                        beforeEach {
+                            await formControl.reset(name: .a)
+                        }
+                        
+                        it("all fields are valid") {
+                            let formState = await formControl.formState
+                            expect(formState.isValid) == true
+                            expect(formState.errors[.a]).to(beNil())
+                            expect(formState.errors[.b]).to(beNil())
+                        }
+                    }
+                    
+                    context("submit the form") {
+                        beforeEach {
+                            try? await formControl.handleSubmit(onValid: { _, _ in })
+                        }
+                        
+                        it("all fields are valid") {
+                            let formState = await formControl.formState
+                            expect(formState.isValid) == true
+                            expect(formState.errors[.a]).to(beNil())
+                            expect(formState.errors[.b]).to(beNil())
+                        }
+                    }
+                    
+                    context("trigger field \"a\"") {
+                        beforeEach {
+                            await formControl.trigger(name: .a)
+                        }
+                        
+                        it("all fields are valid") {
+                            let formState = await formControl.formState
+                            expect(formState.isValid) == true
+                            expect(formState.errors[.a]).to(beNil())
+                            expect(formState.errors[.b]).to(beNil())
+                        }
+                    }
+                }
+            }
+            
+            context("resolver indicates field \"a\" is invalid") {
+                beforeEach {
+                    let errors: FormError<TestFieldName> = .init(
+                        errorFields: [.a],
+                        messages: [
+                            .a: ["Failed to validate a"]
+                        ]
+                    )
+                    resolverProxy.result = .failure(errors)
+                }
+                
+                context("submit the form") {
+                    beforeEach {
+                        try? await formControl.handleSubmit(onValid: { _, _ in })
+                    }
+                    
+                    it("field \"a\" is invalid and \"b\" isn't") {
+                        let formState = await formControl.formState
+                        expect(formState.isValid) == false
+                        expect(formState.errors[.a]) == ["Failed to validate a"]
+                        expect(formState.errors[.b]).to(beNil())
+                    }
+                }
+                
+                context("trigger field \"a\"") {
+                    beforeEach {
+                        await formControl.trigger(name: .a)
+                    }
+                    
+                    it("field \"a\" is invalid and \"b\" isn't") {
+                        let formState = await formControl.formState
+                        expect(formState.isValid) == false
+                        expect(formState.errors[.a]) == ["Failed to validate a"]
+                        expect(formState.errors[.b]).to(beNil())
+                    }
+                }
+                
+                context("reset field \"a\" with default options") {
+                    beforeEach {
+                        await formControl.reset(name: .a)
+                    }
+                    
+                    it("field \"a\" is invalid and \"b\" isn't") {
+                        let formState = await formControl.formState
+                        expect(formState.isValid) == false
+                        expect(formState.errors[.a]) == ["Failed to validate a"]
+                        expect(formState.errors[.b]).to(beNil())
+                    }
+                }
+            }
+        }
+    }
+}
+
+private class ResolverProxy<FieldName> where FieldName: Hashable {
+    var result: Result<ResolverValue<FieldName>, ResolverError<FieldName>>
+
+    init(value: ResolverValue<FieldName>) {
+        self.result = .success(value)
+    }
+
+    init(error: ResolverError<FieldName>) {
+        self.result = .failure(error)
+    }
+
+    func resolver(values: ResolverValue<FieldName>, context: Any?, fieldNames: [FieldName]) async -> Result<ResolverValue<FieldName>, ResolverError<FieldName>> {
+        result
     }
 }

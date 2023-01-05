@@ -38,14 +38,14 @@ public func useForm<FieldName>(_ options: FormOption<FieldName>) -> FormControl<
 public struct FormOption<FieldName> where FieldName: Hashable {
     var mode: Mode
     var reValidateMode: ReValidateMode
-    let resolver: Resolver<FieldName>?
-    let context: Any?
+    var resolver: Resolver<FieldName>?
+    var context: Any?
     var shouldUnregister: Bool
     var delayError: Bool
 
     init(mode: Mode,
          reValidateMode: ReValidateMode,
-         resolver: Resolver<FieldName>?,
+         @_implicitSelfCapture resolver: Resolver<FieldName>?,
          context: Any?,
          shouldUnregister: Bool,
          delayError: Bool

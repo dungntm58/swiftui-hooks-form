@@ -69,7 +69,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
         await unregister(names: name, options: options)
     }
 
-    public func handleSubmit(onValid: @escaping (FormValue<FieldName>, FormError<FieldName>) async throws -> Void, onInvalid: ((FormValue<FieldName>, FormError<FieldName>) async throws -> Void)? = nil) async throws {
+    public func handleSubmit(
+        @_implicitSelfCapture onValid: @escaping (FormValue<FieldName>, FormError<FieldName>) async throws -> Void,
+        @_implicitSelfCapture onInvalid: ((FormValue<FieldName>, FormError<FieldName>) async throws -> Void)? = nil
+    ) async throws {
         let preservedSubmissionState = instantFormState.submissionState
         instantFormState.submissionState = .submitting
         let errors: FormError<FieldName>
@@ -84,9 +87,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
                     Array(fields.keys)
                 )
                 switch result {
-                case .success:
+                case .success(let formValues):
                     isOveralValid = true
                     errors = .init()
+                    instantFormState.formValues.update(other: formValues)
                 case .failure(let e):
                     isOveralValid = false
                     errors = e
@@ -123,9 +127,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 let names = fields.keys.filter(instantFormState.errors.errorFields.contains)
                 let result = await resolver(instantFormState.formValues, options.context, names)
                 switch result {
-                case .success:
+                case .success(let formValues):
                     isOveralValid = true
                     errors = .init()
+                    instantFormState.formValues.update(other: formValues)
                 case .failure(let e):
                     isOveralValid = false
                     errors = e
@@ -292,9 +297,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if let resolver = options.resolver {
             let result = await resolver(instantFormState.formValues, options.context, validationNames)
             switch result {
-            case .success:
+            case .success(let formValues):
                 isValid = true
                 errors = instantFormState.errors
+                instantFormState.formValues.update(other: formValues)
             case .failure(let e):
                 isValid = false
                 errors = instantFormState.errors.rewrite(from: e)
@@ -345,8 +351,9 @@ extension FormControl {
             let isValid: Bool
             let result = await resolver(formState.formValues, options.context, Array(formState.defaultValues.keys))
             switch result {
-            case .success:
+            case .success(let formValues):
                 isValid = true
+                instantFormState.formValues.update(other: formValues)
             case .failure(let e):
                 isValid = false
                 instantFormState.errors = e

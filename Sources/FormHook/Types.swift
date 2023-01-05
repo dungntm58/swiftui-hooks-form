@@ -80,6 +80,14 @@ public typealias FieldRegistration<Value> = Binding<Value>
 
 public typealias FormValue<FieldName> = [FieldName: Any] where FieldName: Hashable
 
+extension FormValue {
+    mutating func update(other: Self) {
+        for (key, value) in other {
+            updateValue(value, forKey: key)
+        }
+    }
+}
+
 public struct FormError<FieldName>: Equatable where FieldName: Hashable {
     public private(set) var errorFields: Set<FieldName>
     public private(set) var messages: [FieldName: [String]]
