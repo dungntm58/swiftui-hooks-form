@@ -14,7 +14,7 @@ public func useForm<FieldName>(
     resolver: Resolver<FieldName>? = nil,
     context: Any? = nil,
     shouldUnregister: Bool = true,
-    delayError: Bool = false
+    delayErrorInNanoseconds: UInt64 = 0
 ) -> FormControl<FieldName> where FieldName: Hashable {
     useForm(
         FormOption(
@@ -23,7 +23,7 @@ public func useForm<FieldName>(
             resolver: resolver,
             context: context,
             shouldUnregister: shouldUnregister,
-            delayError: delayError
+            delayErrorInNanoseconds: delayErrorInNanoseconds
         )
     )
 }
@@ -41,21 +41,21 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     var resolver: Resolver<FieldName>?
     var context: Any?
     var shouldUnregister: Bool
-    var delayError: Bool
+    var delayErrorInNanoseconds: UInt64
 
     init(mode: Mode,
          reValidateMode: ReValidateMode,
          @_implicitSelfCapture resolver: Resolver<FieldName>?,
          context: Any?,
          shouldUnregister: Bool,
-         delayError: Bool
+         delayErrorInNanoseconds: UInt64
     ) {
         self.mode = mode
         self.reValidateMode = reValidateMode
         self.resolver = resolver
         self.context = context
         self.shouldUnregister = shouldUnregister
-        self.delayError = delayError
+        self.delayErrorInNanoseconds = delayErrorInNanoseconds
     }
 }
 

@@ -10,6 +10,8 @@ import SwiftUI
 import Hooks
 
 public class FormControl<FieldName> where FieldName: Hashable {
+    var currentErrorNotifyTask: Task<Void, Error>?
+
     var options: FormOption<FieldName>
     var fields: [FieldName: FieldProtocol]
     @MainActor @Binding
@@ -100,7 +102,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
                     var errorFields: Set<FieldName> = .init()
                     var messages: [FieldName: [String]] = [:]
                     var isOveralValid = true
-                    
+
                     for (key, field) in fields {
                         group.addTask {
                             let (isValid, messages) = await field.computeMessages()
@@ -171,7 +173,17 @@ public class FormControl<FieldName> where FieldName: Hashable {
             }
             instantFormState.isValid = isOveralValid
             instantFormState.isSubmitSuccessful = errors.errorFields.isEmpty
-            instantFormState.errors = errors
+            currentErrorNotifyTask?.cancel()
+            if options.delayErrorInNanoseconds == 0 || isOveralValid {
+                currentErrorNotifyTask = nil
+                instantFormState.errors = errors
+            } else {
+                currentErrorNotifyTask = Task {
+                    try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
+                    instantFormState.errors = errors
+                    await syncFormState()
+                }
+            }
             instantFormState.submitCount += 1
             instantFormState.submissionState = .submitted
             await syncFormState()
@@ -179,7 +191,17 @@ public class FormControl<FieldName> where FieldName: Hashable {
             instantFormState.isValid = isOveralValid
             instantFormState.submissionState = preservedSubmissionState
             instantFormState.isSubmitSuccessful = false
-            instantFormState.errors = errors
+            currentErrorNotifyTask?.cancel()
+            if options.delayErrorInNanoseconds == 0 || isOveralValid {
+                currentErrorNotifyTask = nil
+                instantFormState.errors = errors
+            } else {
+                currentErrorNotifyTask = Task {
+                    try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
+                    instantFormState.errors = errors
+                    await syncFormState()
+                }
+            }
             instantFormState.submitCount += 1
             instantFormState.submissionState = .submitted
             await syncFormState()
@@ -331,7 +353,16 @@ public class FormControl<FieldName> where FieldName: Hashable {
             instantFormState.isValid = false
         }
         instantFormState.isValidating = false
-        instantFormState.errors = errors
+        currentErrorNotifyTask?.cancel()
+        if options.delayErrorInNanoseconds == 0 {
+            instantFormState.errors = errors
+        } else {
+            currentErrorNotifyTask = Task {
+                try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
+                instantFormState.errors = errors
+                await syncFormState()
+            }
+        }
         await syncFormState()
         return isValid
     }
@@ -356,7 +387,17 @@ extension FormControl {
                 instantFormState.formValues.update(other: formValues)
             case .failure(let e):
                 isValid = false
-                instantFormState.errors = e
+                currentErrorNotifyTask?.cancel()
+                if options.delayErrorInNanoseconds == 0 || isValid {
+                    currentErrorNotifyTask = nil
+                    instantFormState.errors = e
+                } else {
+                    currentErrorNotifyTask = Task {
+                        try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
+                        instantFormState.errors = e
+                        await syncFormState()
+                    }
+                }
             }
             instantFormState.isValid = isValid
         } else {
@@ -378,7 +419,17 @@ extension FormControl {
                 }
                 return (true, errors)
             }
-            instantFormState.errors = errors
+            currentErrorNotifyTask?.cancel()
+            if options.delayErrorInNanoseconds == 0 || isValid {
+                currentErrorNotifyTask = nil
+                instantFormState.errors = errors
+            } else {
+                currentErrorNotifyTask = Task {
+                    try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
+                    instantFormState.errors = errors
+                    await syncFormState()
+                }
+            }
             instantFormState.isValid = isValid
         }
         await syncFormState()
@@ -460,7 +511,7 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
     let resolver: Resolver<FieldName>?
     let context: Any?
     let shouldUnregister: Bool
-    let delayError: Bool
+    let delayErrorInNanoseconds: UInt64
     let contentBuilder: (FormControl<FieldName>) -> Content
 
     public init(mode: Mode = .onSubmit,
@@ -468,7 +519,7 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
                 resolver: Resolver<FieldName>? = nil,
                 context: Any? = nil,
                 shouldUnregister: Bool = true,
-                delayError: Bool = false,
+                delayErrorInNanoseconds: UInt64 = 0,
                 @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
     ) {
         self.mode = mode
@@ -476,7 +527,7 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
         self.resolver = resolver
         self.context = context
         self.shouldUnregister = shouldUnregister
-        self.delayError = delayError
+        self.delayErrorInNanoseconds = delayErrorInNanoseconds
         self.contentBuilder = content
     }
 
@@ -488,7 +539,7 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
                 resolver: resolver,
                 context: context,
                 shouldUnregister: shouldUnregister,
-                delayError: delayError
+                delayErrorInNanoseconds: delayErrorInNanoseconds
             )
             Context.Provider(value: form) {
                 contentBuilder(form)

@@ -93,7 +93,7 @@ func useForm<FieldName>(
     context: Any? = nil,
     shouldUnregister: Bool = true,
     criteriaMode: CriteriaMode = .all,
-    delayError: Bool = false
+    delayErrorInNanoseconds: UInt64 = 0
 ) -> FormControl<FieldName> where FieldName: Hashable
 ```
 

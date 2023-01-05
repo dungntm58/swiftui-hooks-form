@@ -34,7 +34,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -98,7 +98,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: false,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -137,7 +137,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -313,7 +313,7 @@ final class FormHookTests: QuickSpec {
                     resolver: resolverProxy.resolver(values:context:fieldNames:),
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -327,7 +327,7 @@ final class FormHookTests: QuickSpec {
                 _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
             }
             
-            context("formState is invalid") {
+            context("formState is invalid, key \"a\" has been already invalid") {
                 beforeEach {
                     formControl.instantFormState.isValid = false
                     formControl.instantFormState.errors.setMessages(
@@ -369,7 +369,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -505,7 +505,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -812,7 +812,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -874,7 +874,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -977,7 +977,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -1009,6 +1009,27 @@ final class FormHookTests: QuickSpec {
                         beforeEach {
                             aValidator.result = false
                             aValidator.messages = ["Failed to validate a"]
+                        }
+                        
+                        context("delayError equals 100ms") {
+                            beforeEach {
+                                formControl.options.delayErrorInNanoseconds = 100_000_000
+                            }
+                            
+                            it("formState accepts errors after 100ms") {
+                                do {
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.errors.errorFields.isEmpty) == true
+                                    
+                                    try await Task.sleep(nanoseconds: 110_000_000)
+                                    let fieldState = await formControl.getFieldState(name: .a)
+                                    expect(fieldState.isInvalid) == true
+                                    expect(fieldState.error) == ["Failed to validate a"]
+                                } catch {
+                                    fail()
+                                }
+                            }
                         }
                         
                         it("formState is invalid") {
@@ -1098,6 +1119,31 @@ final class FormHookTests: QuickSpec {
                         beforeEach {
                             aValidator.result = false
                             aValidator.messages = ["Failed to validate a"]
+                        }
+                        
+                        context("delayError equals 100ms") {
+                            beforeEach {
+                                formControl.options.delayErrorInNanoseconds = 100_000_000
+                            }
+                            
+                            it("formState accepts errors after 100ms") {
+                                do {
+                                    try await formControl.handleSubmit { _, _ in
+                                        
+                                    } onInvalid: { _, _ in
+                                        throw NSError(domain: "", code: 999)
+                                    }
+                                    fail()
+                                } catch {
+                                    let formState = await formControl.formState
+                                    expect(formState.errors.errorFields.isEmpty) == true
+                                    
+                                    try await Task.sleep(nanoseconds: 110_000_000)
+                                    let fieldState = await formControl.getFieldState(name: .a)
+                                    expect(fieldState.isInvalid) == true
+                                    expect(fieldState.error) == ["Failed to validate a"]
+                                }
+                            }
                         }
                         
                         it("formState is invalid") {
@@ -1420,7 +1466,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -1438,6 +1484,28 @@ final class FormHookTests: QuickSpec {
                 beforeEach {
                     aValidator.result = false
                     aValidator.messages = ["Failed to validate a"]
+                }
+                
+                context("delayError equals 100ms") {
+                    beforeEach {
+                        formControl.options.delayErrorInNanoseconds = 100_000_000
+                    }
+                    
+                    it("formState accepts errors after 100ms") {
+                        await formControl.trigger()
+                        
+                        let formState = await formControl.formState
+                        expect(formState.errors.errorFields.isEmpty) == true
+                        
+                        try await Task.sleep(nanoseconds: 110_000_000)
+                        let afieldState = await formControl.getFieldState(name: .a)
+                        expect(afieldState.isInvalid) == true
+                        expect(afieldState.error) == ["Failed to validate a"]
+                        
+                        let bfieldState = await formControl.getFieldState(name: .b)
+                        expect(bfieldState.isInvalid) == false
+                        expect(bfieldState.error).to(beEmpty())
+                    }
                 }
                 
                 it("result of validation \"a\" is false, and errors of \"a\" equals [\"Failed to validate a\"]") {
@@ -1462,6 +1530,28 @@ final class FormHookTests: QuickSpec {
                 beforeEach {
                     aValidator.result = false
                     aValidator.messages = ["Failed to validate a"]
+                }
+                
+                context("delayError equals 100ms") {
+                    beforeEach {
+                        formControl.options.delayErrorInNanoseconds = 100_000_000
+                    }
+                    
+                    it("formState accepts errors after 100ms") {
+                        await formControl.trigger()
+                        
+                        let formState = await formControl.formState
+                        expect(formState.errors.errorFields.isEmpty) == true
+                        
+                        try await Task.sleep(nanoseconds: 110_000_000)
+                        let afieldState = await formControl.getFieldState(name: .a)
+                        expect(afieldState.isInvalid) == true
+                        expect(afieldState.error) == ["Failed to validate a"]
+                        
+                        let bfieldState = await formControl.getFieldState(name: .b)
+                        expect(bfieldState.isInvalid) == false
+                        expect(bfieldState.error).to(beEmpty())
+                    }
                 }
                 
                 it("result of validation \"a\" is false, and errors of \"a\" equals [\"Failed to validate a\"]") {
@@ -1608,7 +1698,7 @@ final class FormHookTests: QuickSpec {
                     resolver: resolverProxy.resolver(values:context:fieldNames:),
                     context: nil,
                     shouldUnregister: true,
-                    delayError: true
+                    delayErrorInNanoseconds: 0
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
