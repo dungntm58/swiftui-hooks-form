@@ -44,8 +44,11 @@ resolve-dependencies:
 .PHONY: test-library
 test-library:
 	for platform in "$(TEST_PLATFORM_IOS)" "$(TEST_PLATFORM_MACOS)" "$(TEST_PLATFORM_TVOS)"; do \
-	    xcodebuild test -scheme $(LIBRARY_SCHEME) -destination platform="$$platform"; \
+	  xcodebuild test -scheme $(LIBRARY_SCHEME) -destination platform="$$platform"; \
 	done
+
+.PHONY: test-example
+test-example:
 	cd Example && xcodebuild test -scheme $(EXAMPLE_SCHEME) -destination platform="$(TEST_PLATFORM_IOS)"
 
 .PHONY: build-examples
