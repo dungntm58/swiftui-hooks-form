@@ -48,10 +48,6 @@ extension Validator {
         result.messages
     }
 
-    public func generateMessage(result: Result) -> [String] {
-        []
-    }
-
     public func computeMessage(value: Value) async -> (Bool, [String]) {
         let result = await validate(value)
         return (isValid(result: result), generateMessage(result: result))

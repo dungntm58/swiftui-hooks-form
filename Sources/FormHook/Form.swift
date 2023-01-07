@@ -39,6 +39,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         return field.value
     }
 
+    deinit {
+        currentErrorNotifyTask?.cancel()
+        currentErrorNotifyTask = nil
+    }
+
     public func unregister(names: [FieldName], options: UnregisterOption = []) async {
         if self.options.shouldUnregister {
             names.forEach { fields[$0] = nil }
@@ -75,7 +80,6 @@ public class FormControl<FieldName> where FieldName: Hashable {
         @_implicitSelfCapture onValid: @escaping (FormValue<FieldName>, FormError<FieldName>) async throws -> Void,
         @_implicitSelfCapture onInvalid: ((FormValue<FieldName>, FormError<FieldName>) async throws -> Void)? = nil
     ) async throws {
-        let preservedSubmissionState = instantFormState.submissionState
         instantFormState.submissionState = .submitting
         let errors: FormError<FieldName>
         var isOveralValid: Bool
@@ -161,7 +165,6 @@ public class FormControl<FieldName> where FieldName: Hashable {
             instantFormState.isValidating = false
             await syncFormState()
         } else {
-            await syncFormState()
             isOveralValid = instantFormState.isValid
             errors = instantFormState.errors
         }
@@ -171,41 +174,31 @@ public class FormControl<FieldName> where FieldName: Hashable {
             } else if let onInvalid {
                 try await onInvalid(instantFormState.formValues, errors)
             }
-            instantFormState.isValid = isOveralValid
-            instantFormState.isSubmitSuccessful = errors.errorFields.isEmpty
-            currentErrorNotifyTask?.cancel()
-            if options.delayErrorInNanoseconds == 0 || isOveralValid {
-                currentErrorNotifyTask = nil
-                instantFormState.errors = errors
-            } else {
-                currentErrorNotifyTask = Task {
-                    try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
-                    instantFormState.errors = errors
-                    await syncFormState()
-                }
-            }
-            instantFormState.submitCount += 1
-            instantFormState.submissionState = .submitted
-            await syncFormState()
+            await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: errors.errorFields.isEmpty)
         } catch {
-            instantFormState.isValid = isOveralValid
-            instantFormState.submissionState = preservedSubmissionState
-            instantFormState.isSubmitSuccessful = false
-            currentErrorNotifyTask?.cancel()
-            if options.delayErrorInNanoseconds == 0 || isOveralValid {
-                currentErrorNotifyTask = nil
-                instantFormState.errors = errors
-            } else {
-                currentErrorNotifyTask = Task {
-                    try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
-                    instantFormState.errors = errors
-                    await syncFormState()
-                }
-            }
-            instantFormState.submitCount += 1
-            instantFormState.submissionState = .submitted
-            await syncFormState()
+            await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: false)
             throw error
+        }
+    }
+
+    private func postHandleSubmit(isOveralValid: Bool, errors: FormError<FieldName>, isSubmitSuccessful: Bool) async {
+        instantFormState.isValid = isOveralValid
+        instantFormState.submissionState = .submitted
+        instantFormState.isSubmitSuccessful = isSubmitSuccessful
+        currentErrorNotifyTask?.cancel()
+        instantFormState.submitCount += 1
+        if options.delayErrorInNanoseconds == 0 || isOveralValid {
+            currentErrorNotifyTask = nil
+            instantFormState.errors = errors
+            await syncFormState()
+        } else {
+            await syncFormState()
+            let delayErrorInNanoseconds = options.delayErrorInNanoseconds
+            currentErrorNotifyTask = Task { [weak self] in
+                try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
+                self?.instantFormState.errors = errors
+                await self?.syncFormState()
+            }
         }
     }
 
@@ -244,10 +237,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if options.contains(.keepErrors) {
             await syncFormState()
         }
-        if instantFormState.isValid {
-            return await updateValid()
-        }
-        await syncFormState()
+        return await updateValid()
     }
 
     public func reset(name: FieldName, defaultValue: Any, options: SingleResetOption = []) async {
@@ -268,10 +258,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
             return await syncFormState()
         }
         instantFormState.errors.remove(name: name)
-        if instantFormState.isValid {
-            return await updateValid()
-        }
-        await syncFormState()
+        await updateValid()
     }
 
     public func clearErrors(names: [FieldName]) async {
@@ -356,14 +343,16 @@ public class FormControl<FieldName> where FieldName: Hashable {
         currentErrorNotifyTask?.cancel()
         if options.delayErrorInNanoseconds == 0 {
             instantFormState.errors = errors
+            await syncFormState()
         } else {
-            currentErrorNotifyTask = Task {
-                try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
-                instantFormState.errors = errors
-                await syncFormState()
+            await syncFormState()
+            let delayErrorInNanoseconds = options.delayErrorInNanoseconds
+            currentErrorNotifyTask = Task { [weak self] in
+                try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
+                self?.instantFormState.errors = errors
+                await self?.syncFormState()
             }
         }
-        await syncFormState()
         return isValid
     }
 
@@ -376,11 +365,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
 extension FormControl {
     func updateValid() async {
         guard instantFormState.isValid else {
-            return
+            return await syncFormState()
         }
         if let resolver = options.resolver {
             let isValid: Bool
-            let result = await resolver(formState.formValues, options.context, Array(formState.defaultValues.keys))
+            let result = await resolver(instantFormState.formValues, options.context, Array(formState.defaultValues.keys))
             switch result {
             case .success(let formValues):
                 isValid = true
@@ -392,10 +381,11 @@ extension FormControl {
                     currentErrorNotifyTask = nil
                     instantFormState.errors = e
                 } else {
-                    currentErrorNotifyTask = Task {
-                        try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
-                        instantFormState.errors = e
-                        await syncFormState()
+                    let delayErrorInNanoseconds = options.delayErrorInNanoseconds
+                    currentErrorNotifyTask = Task { [weak self] in
+                        try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
+                        self?.instantFormState.errors = e
+                        await self?.syncFormState()
                     }
                 }
             }
@@ -424,10 +414,11 @@ extension FormControl {
                 currentErrorNotifyTask = nil
                 instantFormState.errors = errors
             } else {
-                currentErrorNotifyTask = Task {
-                    try await Task.sleep(nanoseconds: options.delayErrorInNanoseconds)
-                    instantFormState.errors = errors
-                    await syncFormState()
+                let delayErrorInNanoseconds = options.delayErrorInNanoseconds
+                currentErrorNotifyTask = Task { [weak self] in
+                    try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
+                    self?.instantFormState.errors = errors
+                    await self?.syncFormState()
                 }
             }
             instantFormState.isValid = isValid

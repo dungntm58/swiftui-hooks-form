@@ -13,6 +13,10 @@ public struct NoopValidator<Value>: Validator {
     public func validate(_ value: Value) async -> Bool {
         true
     }
+
+    public func generateMessage(result: Bool) -> [String] {
+        []
+    }
 }
 
 public struct NotEmptyValidator<Value>: Validator where Value: Collection {
