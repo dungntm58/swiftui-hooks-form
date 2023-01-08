@@ -66,10 +66,9 @@ public class FormControl<FieldName> where FieldName: Hashable {
             names.forEach { instantFormState.defaultValues[$0] = nil }
         }
         if options.contains(.keepIsValid) {
-            return await syncFormState()
+            return await updateValid()
         }
         names.forEach { instantFormState.errors.removeValidityOnly(name: $0) }
-        await updateValid()
     }
 
     public func unregister(name: FieldName..., options: UnregisterOption = []) async {
@@ -233,11 +232,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if !options.contains(.keepSubmitCount) {
             instantFormState.submitCount = 0
         }
-        
-        if options.contains(.keepErrors) {
-            await syncFormState()
+        if !options.contains(.keepErrors) {
+            await updateValid()
         }
-        return await updateValid()
+        return await syncFormState()
     }
 
     public func reset(name: FieldName, defaultValue: Any, options: SingleResetOption = []) async {
@@ -254,11 +252,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if !options.contains(.keepDirty) {
             instantFormState.dirtyFields.remove(name)
         }
-        if options.contains(.keepError) {
-            return await syncFormState()
+        if !options.contains(.keepError) {
+            instantFormState.errors.remove(name: name)
+            await updateValid()
         }
-        instantFormState.errors.remove(name: name)
-        await updateValid()
+        return await syncFormState()
     }
 
     public func clearErrors(names: [FieldName]) async {
@@ -365,11 +363,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
 extension FormControl {
     func updateValid() async {
         guard instantFormState.isValid else {
-            return await syncFormState()
+            return
         }
         if let resolver = options.resolver {
             let isValid: Bool
-            let result = await resolver(instantFormState.formValues, options.context, Array(formState.defaultValues.keys))
+            let result = await resolver(instantFormState.formValues, options.context, Array(fields.keys))
             switch result {
             case .success(let formValues):
                 isValid = true
@@ -455,6 +453,10 @@ private extension FormControl {
 
         var shouldUnregister: Bool {
             options.shouldUnregister
+        }
+
+        func computeResult() async -> Bool {
+            await options.rules.isValid(value.wrappedValue)
         }
 
         func computeMessages() async -> (Bool, [String]) {

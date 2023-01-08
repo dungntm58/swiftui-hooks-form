@@ -8,25 +8,25 @@
 import Foundation
 
 extension Validator {
-    public func and<V>(shouldGetAllMessages: Bool = false, validator: V...) -> some Validator where V: Validator, V.Value == Value {
+    public func and<V>(shouldGetAllMessages: Bool = false, validator: V...) -> some Validator<Value> where V: Validator, V.Value == Value {
         CompoundValidator<Value>(operator: .and, shouldGetAllMessages: shouldGetAllMessages, validator: [eraseToAnyValidator()] + validator.map { $0.eraseToAnyValidator() })
     }
 
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-    public func and(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator {
+    public func and(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator<Value> {
         CompoundValidator<Value>(operator: .and, shouldGetAllMessages: shouldGetAllMessages, validator: ([self] + validator).map { $0.eraseToAnyValidator() })
     }
 
-    public func or<V>(shouldGetAllMessages: Bool = false, validator: V...) -> some Validator where V: Validator, V.Value == Value {
+    public func or<V>(shouldGetAllMessages: Bool = false, validator: V...) -> some Validator<Value> where V: Validator, V.Value == Value {
         CompoundValidator<Value>(operator: .or, shouldGetAllMessages: shouldGetAllMessages, validator: [eraseToAnyValidator()] + validator.map { $0.eraseToAnyValidator() })
     }
 
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-    public func or(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator {
+    public func or(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator<Value> {
         CompoundValidator<Value>(operator: .or, shouldGetAllMessages: shouldGetAllMessages, validator: ([self] + validator).map { $0.eraseToAnyValidator() })
     }
 
-    public func preMap<Input>(_ handler: @escaping (Input) async -> Value) -> some Validator {
+    public func preMap<Input>(_ handler: @escaping (Input) async -> Value) -> some Validator<Input> {
         PreMapValidator<Input, Result, Value>(mapHandler: handler, validator: self)
     }
 }

@@ -73,7 +73,7 @@ class HookTests: QuickSpec {
                     
                     it("key \"a\" is unregistered") {
                         try? await Task.sleep(nanoseconds: 200_000_000)
-                        let formState = await useControllerSpec.formControl.formState
+                        let formState = useControllerSpec.formControl.instantFormState
                         expect(formState.formValues[.a]).to(beNil())
                         expect(formState.defaultValues[.a]).to(beNil())
                     }

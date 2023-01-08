@@ -174,7 +174,7 @@ final class FormHookTests: QuickSpec {
                         }
                         
                         it("field \"a\" is not dirty") {
-                            let isDirty = await formControl.getFieldState(name: .a).isDirty
+                            let isDirty = formControl.getFieldState(name: .a).isDirty
                             expect(isDirty) == false
                         }
                     }
@@ -186,7 +186,7 @@ final class FormHookTests: QuickSpec {
                     }
                     
                     it("value of key \"a\" remains") {
-                        let formState = await formControl.formState
+                        let formState = formControl.instantFormState
                         expect(areEqual(first: formState.formValues[.a], second: testDefaultValue)) == true
                     }
                 }
@@ -197,7 +197,7 @@ final class FormHookTests: QuickSpec {
                     }
                     
                     it("default value of key \"a\" remains") {
-                        let formState = await formControl.formState
+                        let formState = formControl.instantFormState
                         expect(formState.formValues[.a]).to(beNil())
                         expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue)) == true
                     }
@@ -281,7 +281,7 @@ final class FormHookTests: QuickSpec {
                         }
                         
                         it("key \"a\" remains errors") {
-                            let fieldState = await formControl.getFieldState(name: .a)
+                            let fieldState = formControl.getFieldState(name: .a)
                             expect(fieldState.isInvalid) == false
                             expect(fieldState.error.count) == 1
                             expect(fieldState.error.first) == "Failed to validate a"

@@ -32,6 +32,11 @@ public protocol Validator<Value> {
 }
 
 extension Validator {
+    public func isValid(_ value: Value) async -> Bool {
+        let result = await validate(value)
+        return isValid(result: result)
+    }
+
     public func isValid(result: Result) -> Bool where Result: BoolConvertible {
         result.boolValue
     }
