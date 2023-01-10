@@ -53,3 +53,19 @@ func areEqual(first: Any?, second: Any?) -> Bool {
     }
     return true
 }
+
+struct AnyEquatable: Equatable {
+    static func == (lhs: AnyEquatable, rhs: AnyEquatable) -> Bool {
+        areEqual(first: lhs.base, second: rhs.base)
+    }
+
+    let base: Any?
+
+    init(_ base: Any?) {
+        if let obj = base as? AnyEquatable {
+            self = obj
+        } else {
+            self.base = base
+        }
+    }
+}

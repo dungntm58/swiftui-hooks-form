@@ -253,7 +253,7 @@ final class FormHookTests: QuickSpec {
                         it("validity of \"a\" remains") {
                             let fieldState = await formControl.getFieldState(name: .a)
                             expect(fieldState.isInvalid) == true
-                            expect(fieldState.error.isEmpty) == true
+                            expect(fieldState.error).to(beEmpty())
                         }
                     }
                 }
@@ -268,7 +268,7 @@ final class FormHookTests: QuickSpec {
                         it("key \"a\" remains errors") {
                             let fieldState = await formControl.getFieldState(name: .a)
                             expect(fieldState.isInvalid) == false
-                            expect(fieldState.error.isEmpty) == true
+                            expect(fieldState.error).to(beEmpty())
                         }
                     }
                     
@@ -447,7 +447,7 @@ final class FormHookTests: QuickSpec {
                             it("key \"a\" remains errors") {
                                 let fieldState = await formControl.getFieldState(name: .a)
                                 expect(fieldState.isInvalid) == false
-                                expect(fieldState.error.isEmpty) == true
+                                expect(fieldState.error).to(beEmpty())
                             }
                         }
                         
@@ -697,7 +697,7 @@ final class FormHookTests: QuickSpec {
                     it("key \"b\" remains errors") {
                         let fieldState = await formControl.getFieldState(name: .b)
                         expect(fieldState.isInvalid) == false
-                        expect(fieldState.error.isEmpty) == true
+                        expect(fieldState.error).to(beEmpty())
                     }
                 }
                 
@@ -846,7 +846,7 @@ final class FormHookTests: QuickSpec {
                     it("errors of key \"a\" has gone") {
                         let fieldState = await formControl.getFieldState(name: .a)
                         expect(fieldState.isInvalid) == false
-                        expect(fieldState.error.isEmpty) == true
+                        expect(fieldState.error).to(beEmpty())
                     }
                     
                     it("key \"b\" remains errors") {

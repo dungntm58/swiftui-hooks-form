@@ -16,9 +16,15 @@ public func useController<FieldName, Value>(
     unregisterOption: UnregisterOption = []
 ) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
     let form = useContext(Context<FormControl<FieldName>>.self)
-    let registration = form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister))
+    let registrationRef = useRef(form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister)))
 
-    useEffect {{
+    let preservedChangedArray = [
+        AnyEquatable(name),
+        AnyEquatable(shouldUnregister),
+        AnyEquatable(unregisterOption),
+        AnyEquatable(form)
+    ]
+    useEffect(.preserved(by: preservedChangedArray)) {{
         guard shouldUnregister else { return }
         Task {
             await form.unregister(name: name, options: unregisterOption)
@@ -27,7 +33,7 @@ public func useController<FieldName, Value>(
 
     let field = FieldOption(
         name: name,
-        value: registration
+        value: registrationRef.current
     )
     let fieldState = form.getFieldState(name: name)
     return (field: field, fieldState: fieldState, formState: form.instantFormState)
