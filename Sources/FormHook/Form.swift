@@ -26,15 +26,18 @@ public class FormControl<FieldName> where FieldName: Hashable {
     }
 
     public func register<Value>(name: FieldName, options: RegisterOption<Value>) -> FieldRegistration<Value> {
-        self.instantFormState.formValues[name] = options.defaultValue
         self.instantFormState.defaultValues[name] = options.defaultValue
         let field: Field<Value>
         if let f = fields[name] as? Field<Value> {
             field = f
+            if !areEqual(first: options.defaultValue, second: field.options.defaultValue) && !instantFormState.dirtyFields.contains(name) {
+                instantFormState.formValues[name] = options.defaultValue
+            }
             field.options = options
         } else {
             field = Field(name: name, options: options, control: self)
             fields[name] = field
+            instantFormState.formValues[name] = options.defaultValue
         }
         return field.value
     }
@@ -164,6 +167,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
             instantFormState.isValidating = false
             await syncFormState()
         } else {
+            await syncFormState()
             isOveralValid = instantFormState.isValid
             errors = instantFormState.errors
         }
@@ -438,6 +442,9 @@ private extension FormControl {
         let name: FieldName
         var options: RegisterOption<Value> {
             didSet {
+                if areEqual(first: oldValue.defaultValue, second: options.defaultValue) {
+                    return
+                }
                 value = control.computeValueBinding(name: name, defaultValue: options.defaultValue)
             }
         }
@@ -468,9 +475,14 @@ private extension FormControl {
         .init { [weak self] in
             self?.instantFormState.formValues[name] as? Value ?? defaultValue
         } set: { [weak self] value in
-            self?.instantFormState.formValues[name] = value
-            self?.instantFormState.dirtyFields.insert(name)
-            guard let self = self, self.shouldReValidateOnChange(name: name) else {
+            guard let self = self else {
+                return
+            }
+            self.instantFormState.formValues[name] = value
+            if !self.instantFormState.dirtyFields.contains(name) && !areEqual(first: self.instantFormState.defaultValues[name], second: value) {
+                self.instantFormState.dirtyFields.insert(name)
+            }
+            guard self.shouldReValidateOnChange(name: name) else {
                 return
             }
             Task {

@@ -164,7 +164,7 @@ struct ContentView: HookView {
     var dobView: some View {
         Controller(
             name: FormFieldName.dob,
-            defaultValue: Date()
+            defaultValue: Calendar.current.startOfDay(for: Date())
         ) { field, fieldState, _ in
             let picker = DatePicker(
                 selection: field.value,
@@ -231,7 +231,8 @@ struct ContentView: HookView {
         Controller(
             name: FormFieldName.email,
             defaultValue: "",
-            rules: emailPatternValidator
+            rules: NotEmptyValidator(FormFieldName.email.messages(for:))
+                .and(validator: emailPatternValidator)
         ) { field, fieldState, _ in
             let textField = TextField(field.name.rawValue, text: field.value)
                 .focused($focusField, equals: field.name)

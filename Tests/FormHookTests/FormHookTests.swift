@@ -20,6 +20,7 @@ final class FormHookTests: QuickSpec {
         handleSubmitSpecs()
         triggerSpecs()
         resolverSpecs()
+        changeFieldValueSpecs()
     }
     
     func registerSpecs() {
@@ -57,6 +58,32 @@ final class FormHookTests: QuickSpec {
                     beforeEach {
                         aBinder.wrappedValue = "a"
                         await formControl.syncFormState()
+                    }
+                    
+                    context("registers field \"a\" with the same options") {
+                        beforeEach {
+                            aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue))
+                            await formControl.syncFormState()
+                        }
+                        
+                        it("field \"a\" changes its default value, and doesn't change its value") {
+                            let formState = await formControl.formState
+                            expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue)) == true
+                            expect(areEqual(first: formState.formValues[.a], second: "a")) == true
+                        }
+                    }
+                    
+                    context("registers field \"a\" with other options") {
+                        beforeEach {
+                            aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue2))
+                            await formControl.syncFormState()
+                        }
+                        
+                        it("field \"a\" changes its default value, and doesn't change its value") {
+                            let formState = await formControl.formState
+                            expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue2)) == true
+                            expect(areEqual(first: formState.formValues[.a], second: "a")) == true
+                        }
                     }
                     
                     it("key \"a\" and formState are dirty") {
@@ -1807,6 +1834,78 @@ final class FormHookTests: QuickSpec {
                         expect(formState.isValid) == false
                         expect(formState.errors[.a]) == ["Failed to validate a"]
                         expect(formState.errors[.b]).to(beNil())
+                    }
+                }
+            }
+        }
+    }
+    
+    func changeFieldValueSpecs() {
+        describe("Form Control with shouldUnregister equals false registers a field \"a\" with a default value") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            let testDefaultValue = "%^$#"
+            var aBinder: FieldRegistration<String>!
+            
+            beforeEach {
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: false,
+                    delayErrorInNanoseconds: 0
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: { formState = $0 }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: true)
+                aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue))
+            }
+            
+            context("changes value for \"a\" to the original default value") {
+                beforeEach {
+                    aBinder.wrappedValue = testDefaultValue
+                }
+                
+                it("key \"a\" is still not dirty") {
+                    let fieldState = formControl.getFieldState(name: .a)
+                    expect(fieldState.isDirty) == false
+                }
+                
+                context("changes value for \"a\" to another value") {
+                    beforeEach {
+                        aBinder.wrappedValue = "a"
+                    }
+                    
+                    it("key \"a\" is dirty") {
+                        let fieldState = formControl.getFieldState(name: .a)
+                        expect(fieldState.isDirty) == true
+                    }
+                }
+            }
+            
+            context("changes value for \"a\" to another value") {
+                beforeEach {
+                    aBinder.wrappedValue = "a"
+                }
+                
+                it("key \"a\" is dirty") {
+                    let fieldState = formControl.getFieldState(name: .a)
+                    expect(fieldState.isDirty) == true
+                }
+                
+                context("changes value for \"a\" to the original default value") {
+                    beforeEach {
+                        aBinder.wrappedValue = testDefaultValue
+                    }
+                    
+                    it("key \"a\" is still dirty") {
+                        let fieldState = formControl.getFieldState(name: .a)
+                        expect(fieldState.isDirty) == true
                     }
                 }
             }
