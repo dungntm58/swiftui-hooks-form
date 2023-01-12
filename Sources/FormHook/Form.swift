@@ -279,15 +279,26 @@ public class FormControl<FieldName> where FieldName: Hashable {
         if options.contains(.shouldDirty) || !areEqual(first: value, second: instantFormState.defaultValues[name]) {
             instantFormState.dirtyFields.insert(name)
         }
-        if options.contains(.shouldValidate), let field = fields[name] {
-            let (result, messages) = await field.computeMessages()
-            instantFormState.errors.setMessages(name: name, messages: messages, isValid: result)
-            if !result {
-                instantFormState.isValid = false
-            }
+        guard options.contains(.shouldValidate) else {
             return await syncFormState()
         }
-        await syncFormState()
+        if let resolver = self.options.resolver {
+            let result = await resolver(instantFormState.formValues, self.options.context, [name])
+            switch result {
+            case .success:
+                break
+            case .failure(let e):
+                instantFormState.errors = instantFormState.errors.rewrite(from: e)
+                instantFormState.isValid = false
+            }
+        } else if let field = fields[name] {
+            let (isValid, messages) = await field.computeMessages()
+            instantFormState.errors.setMessages(name: name, messages: messages, isValid: isValid)
+            if !isValid {
+                instantFormState.isValid = false
+            }
+        }
+        return await syncFormState()
     }
 
     public func getFieldState(name: FieldName) -> FieldState {

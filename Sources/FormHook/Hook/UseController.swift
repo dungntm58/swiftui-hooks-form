@@ -16,7 +16,7 @@ public func useController<FieldName, Value>(
     unregisterOption: UnregisterOption = []
 ) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
     let form = useContext(Context<FormControl<FieldName>>.self)
-    let registrationRef = useRef(form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister)))
+    let registration = form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister))
 
     let preservedChangedArray = [
         AnyEquatable(name),
@@ -33,7 +33,7 @@ public func useController<FieldName, Value>(
 
     let field = FieldOption(
         name: name,
-        value: registrationRef.current
+        value: registration
     )
     let fieldState = form.getFieldState(name: name)
     return (field: field, fieldState: fieldState, formState: form.instantFormState)
