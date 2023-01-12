@@ -17,7 +17,7 @@ public func useForm<FieldName>(
     shouldUnregister: Bool = true,
     shouldFocusError: Bool,
     delayErrorInNanoseconds: UInt64 = 0,
-    onFocusedField: @escaping (FieldName) -> Void
+    @_implicitSelfCapture onFocusedField: @escaping (FieldName) -> Void
 ) -> FormControl<FieldName> where FieldName: Hashable {
     useForm(
         FormOption(

@@ -48,61 +48,79 @@ private struct CompoundValidator<Value>: Validator {
     }
 
     func validate(_ value: Value) async -> CompountValidationResult {
-        let pairs = await withTaskGroup(of: ValidatorResultPair.self) { group in
+        await withTaskGroup(of: ValidatorResultPair.self) { group in
             validators.forEach { validator in
                 group.addTask {
                     let result = await validator.validate(value)
                     return (validator, result)
                 }
             }
-            var results: [ValidatorResultPair] = []
             if shouldGetAllMessages {
-                for await resultPair in group {
-                    results.append(resultPair)
+                var isValid: Bool
+                var results: [ValidatorResultPair] = []
+                switch `operator` {
+                case .and:
+                    isValid = true
+                    for await resultPair in group {
+                        results.append(resultPair)
+                        if !resultPair.0.isValid(result: resultPair.1) {
+                            isValid = false
+                        }
+                    }
+                case .or:
+                    isValid = false
+                    for await resultPair in group {
+                        results.append(resultPair)
+                        if resultPair.0.isValid(result: resultPair.1) {
+                            isValid = true
+                        }
+                    }
                 }
-                return results
+                return CompountValidationResult(
+                    messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                    boolValue: isValid
+                )
             }
+            var results: [ValidatorResultPair] = []
             switch `operator` {
             case .and:
                 for await resultPair in group {
                     results.append(resultPair)
                     guard resultPair.0.isValid(result: resultPair.1) else {
-                        return results
+                        return CompountValidationResult(
+                            messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                            boolValue: false
+                        )
                     }
                 }
-                return results
+                return CompountValidationResult(
+                    messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                    boolValue: true
+                )
             case .or:
                 for await resultPair in group {
                     results.append(resultPair)
                     if resultPair.0.isValid(result: resultPair.1) {
-                        return results
+                        return CompountValidationResult(
+                            messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                            boolValue: true
+                        )
                     }
                 }
-                return results
+                return CompountValidationResult(
+                    messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                    boolValue: false
+                )
             }
         }
-        return CompountValidationResult(pairs: pairs, operator: self.operator)
     }
 }
 
 private typealias ValidatorResultPair = (AnyValidator, Any)
 
 private struct CompountValidationResult: BoolConvertible, MessageGenerator {
-    let pairs: [ValidatorResultPair]
-    let `operator`: CompoundValidatorOperator
-
-    var boolValue: Bool {
-        switch `operator` {
-        case .and:
-            return !pairs.contains { validator, result in !validator.isValid(result: result) }
-        case .or:
-            return pairs.contains { validator, result in validator.isValid(result: result) }
-        }
-    }
-
-    var messages: [String] {
-        pairs.flatMap { validator, result in validator.generateMessage(result: result) }
-    }
+    let messages: [String]
+    let boolValue: Bool
 }
 
 private struct PreMapValidator<Value, Result, Output>: Validator {

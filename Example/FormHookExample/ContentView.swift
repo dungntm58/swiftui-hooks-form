@@ -153,7 +153,6 @@ struct ContentView: HookView {
                     picker
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
-                        .font(.system(size: 10)).foregroundColor(.red)
                 }
             } else {
                 picker
