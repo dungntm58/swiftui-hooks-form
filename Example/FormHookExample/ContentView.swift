@@ -37,7 +37,7 @@ struct ContentView: HookView {
     
     @ViewBuilder
     var hookBody: some View {
-        ContextualForm { (form: FormControl<FormFieldName>) in
+        ContextualForm(focusedFieldBinder: $focusField) { form in
             Form {
                 Section("Name") {
                     firstNameView
@@ -62,7 +62,7 @@ struct ContentView: HookView {
                         try await form.handleSubmit(onValid: { _, _ in
                             
                         }, onInvalid: { _, errors in
-                            focusField = FormFieldName.allCases.first(where: errors.errorFields.contains(_:))
+                            
                         })
                     }
                 }
@@ -122,7 +122,7 @@ struct ContentView: HookView {
         ) { field, fieldState, _ in
             let textField = SecureField(field.name.rawValue, text: field.value)
                 .focused($focusField, equals: field.name)
-                .textContentType(.newPassword)
+                .textContentType(.password)
                 .submitLabel(.go)
             
             if let error = fieldState.error.first {

@@ -35,7 +35,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
             }
             field.options = options
         } else {
-            field = Field(name: name, options: options, control: self)
+            field = Field(index: fields.count, name: name, options: options, control: self)
             fields[name] = field
             instantFormState.formValues[name] = options.defaultValue
         }
@@ -176,12 +176,25 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await onValid(instantFormState.formValues, errors)
             } else if let onInvalid {
                 try await onInvalid(instantFormState.formValues, errors)
+                await focusError(with: errors)
             }
             await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: errors.errorFields.isEmpty)
         } catch {
             await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: false)
             throw error
         }
+    }
+
+    private func focusError(with errors: FormError<FieldName>) async {
+        guard options.shouldFocusError else {
+            return
+        }
+        let fields = fields
+            .sorted { $0.value.index < $1.value.index }
+        guard let firstErrorField = fields.first(where: { errors.errorFields.contains($0.key) })?.key else {
+            return
+        }
+        await options.focusedFieldOption.triggerFocus(on: firstErrorField)
     }
 
     private func postHandleSubmit(isOveralValid: Bool, errors: FormError<FieldName>, isSubmitSuccessful: Bool) async {
@@ -450,6 +463,7 @@ extension FormControl {
 
 private extension FormControl {
     class Field<Value>: FieldProtocol {
+        let index: Int
         let name: FieldName
         var options: RegisterOption<Value> {
             didSet {
@@ -462,7 +476,8 @@ private extension FormControl {
         unowned var control: FormControl<FieldName>
         var value: Binding<Value>
 
-        init(name: FieldName, options: RegisterOption<Value>, control: FormControl<FieldName>) {
+        init(index: Int, name: FieldName, options: RegisterOption<Value>, control: FormControl<FieldName>) {
+            self.index = index
             self.name = name
             self.options = options
             self.control = control
@@ -498,6 +513,7 @@ private extension FormControl {
             }
             Task {
                 await self.trigger(name: name)
+                await self.options.focusedFieldOption.triggerFocus(on: name)
             }
         }
     }
@@ -522,12 +538,7 @@ private extension FormControl {
 }
 
 public struct ContextualForm<Content, FieldName>: View where Content: View, FieldName: Hashable {
-    let mode: Mode
-    let reValidateMode: ReValidateMode
-    let resolver: Resolver<FieldName>?
-    let context: Any?
-    let shouldUnregister: Bool
-    let delayErrorInNanoseconds: UInt64
+    let formOptions: FormOption<FieldName>
     let contentBuilder: (FormControl<FieldName>) -> Content
 
     public init(mode: Mode = .onSubmit,
@@ -535,28 +546,51 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
                 resolver: Resolver<FieldName>? = nil,
                 context: Any? = nil,
                 shouldUnregister: Bool = true,
+                shouldFocusError: Bool = true,
                 delayErrorInNanoseconds: UInt64 = 0,
+                onFocusedField: @escaping (FieldName) -> Void,
                 @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
     ) {
-        self.mode = mode
-        self.reValidateMode = reValidateMode
-        self.resolver = resolver
-        self.context = context
-        self.shouldUnregister = shouldUnregister
-        self.delayErrorInNanoseconds = delayErrorInNanoseconds
+        self.formOptions = .init(
+            mode: mode,
+            reValidateMode: reValidateMode,
+            resolver: resolver,
+            context: context,
+            shouldUnregister: shouldUnregister,
+            shouldFocusError: shouldFocusError,
+            delayErrorInNanoseconds: delayErrorInNanoseconds,
+            onFocusedField: onFocusedField
+        )
+        self.contentBuilder = content
+    }
+
+    @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
+    public init(mode: Mode = .onSubmit,
+                reValidateMode: ReValidateMode = .onChange,
+                resolver: Resolver<FieldName>? = nil,
+                context: Any? = nil,
+                shouldUnregister: Bool = true,
+                shouldFocusError: Bool = true,
+                delayErrorInNanoseconds: UInt64 = 0,
+                focusedFieldBinder: FocusState<FieldName?>.Binding,
+                @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
+    ) {
+        self.formOptions = .init(
+            mode: mode,
+            reValidateMode: reValidateMode,
+            resolver: resolver,
+            context: context,
+            shouldUnregister: shouldUnregister,
+            shouldFocusError: shouldFocusError,
+            delayErrorInNanoseconds: delayErrorInNanoseconds,
+            focusedStateBinder: focusedFieldBinder
+        )
         self.contentBuilder = content
     }
 
     public var body: some View {
         HookScope {
-            let form = useForm(
-                mode: mode,
-                reValidateMode: reValidateMode,
-                resolver: resolver,
-                context: context,
-                shouldUnregister: shouldUnregister,
-                delayErrorInNanoseconds: delayErrorInNanoseconds
-            )
+            let form = useForm(formOptions)
             Context.Provider(value: form) {
                 contentBuilder(form)
             }

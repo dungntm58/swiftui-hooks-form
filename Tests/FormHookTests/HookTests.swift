@@ -30,7 +30,9 @@ class HookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayErrorInNanoseconds: true
+                    shouldFocusError: true,
+                    delayErrorInNanoseconds: true,
+                    onFocusedField: { _ in }
                 )
                 await useFormSpec.refreshTester(options: options)
             }
@@ -53,7 +55,9 @@ class HookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayErrorInNanoseconds: true
+                    shouldFocusError: true,
+                    delayErrorInNanoseconds: true,
+                    onFocusedField: { _ in }
                 ), shouldUnregister: true)
                 await useControllerSpec.formControl.syncFormState()
             }
@@ -91,7 +95,9 @@ class HookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    delayErrorInNanoseconds: true
+                    shouldFocusError: true,
+                    delayErrorInNanoseconds: true,
+                    onFocusedField: { _ in }
                 ))
                 await useControllerSpec.formControl.syncFormState()
             }

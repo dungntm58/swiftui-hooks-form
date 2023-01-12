@@ -210,6 +210,7 @@ public struct FieldState {
 }
 
 protocol FieldProtocol {
+    var index: Int { get }
     var shouldUnregister: Bool { get }
     func computeMessages() async -> (Bool, [String])
 }
