@@ -131,6 +131,16 @@ var hookBody: some View {
         TextField("Username", text: field.value)
     }
 }
+
+// this code achieves the same
+
+@ViewBuilder
+var hookBody: some View {
+    ContextualForm(...) { form in
+        let (field, fieldState, formState) = useController(name: FieldName.username, defaultValue: "")
+        TextField("Username", text: field.value)
+    }
+}
 ```
 
 </details>
@@ -139,6 +149,47 @@ var hookBody: some View {
 
 ## SwiftUI Component
 👇 Click to open the description.
+
+<details>
+<summary><CODE>ContextualForm</CODE></summary>
+
+```swift
+struct ContextualForm<Content, FieldName>: View where Content: View, FieldName: Hashable {
+    init(mode: Mode = .onSubmit,
+        reValidateMode: ReValidateMode = .onChange,
+        resolver: Resolver<FieldName>? = nil,
+        context: Any? = nil,
+        shouldUnregister: Bool = true,
+        shouldFocusError: Bool = true,
+        delayErrorInNanoseconds: UInt64 = 0,
+        @_implicitSelfCapture onFocusField: @escaping (FieldName) -> Void,
+        @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
+    )
+
+    @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
+    init(mode: Mode = .onSubmit,
+        reValidateMode: ReValidateMode = .onChange,
+        resolver: Resolver<FieldName>? = nil,
+        context: Any? = nil,
+        shouldUnregister: Bool = true,
+        shouldFocusError: Bool = true,
+        delayErrorInNanoseconds: UInt64 = 0,
+        focusedFieldBinder: FocusState<FieldName?>.Binding,
+        @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
+    )
+```
+It wraps a call of `useForm` inside the `hookBody` and passes the FormControl value to a `Context.Provider<Form>`
+
+It is identical to
+
+```swift
+let form: FormControl<FieldName> = useForm(...)
+Context.Provider(value: form) {
+    ...
+}
+```
+
+</details>
 
 <details>
 <summary><CODE>Controller</CODE></summary>

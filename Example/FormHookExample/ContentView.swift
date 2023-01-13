@@ -31,12 +31,12 @@ enum Gender: String, CaseIterable {
     case female = "Female"
 }
 
-struct ContentView: HookView {
+struct ContentView: View {
     
     @FocusState var focusField: FormFieldName?
     
     @ViewBuilder
-    var hookBody: some View {
+    var body: some View {
         ContextualForm(focusedFieldBinder: $focusField) { form in
             Form {
                 Section("Name") {
@@ -82,7 +82,7 @@ struct ContentView: HookView {
                 .submitLabel(.next)
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     textField
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
@@ -105,7 +105,7 @@ struct ContentView: HookView {
                 .submitLabel(.next)
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     textField
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
@@ -129,7 +129,7 @@ struct ContentView: HookView {
                 .submitLabel(.go)
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     textField
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
@@ -153,7 +153,7 @@ struct ContentView: HookView {
             }
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     picker
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
@@ -177,9 +177,10 @@ struct ContentView: HookView {
             ) {
                 Text(field.name.rawValue)
             }
+                .environment(\.locale, Locale.init(identifier: "en"))
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     picker
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
@@ -213,7 +214,7 @@ struct ContentView: HookView {
                 .submitLabel(.next)
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     textField
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)
@@ -226,7 +227,7 @@ struct ContentView: HookView {
     
     @ViewBuilder
     var phoneView: some View {
-        let phoneRegEx = "^\\d{3}-\\d{3}-\\d{4}$"
+        let phoneRegEx = "^[0-9+]{0,1}+[0-9]{5,16}$"
         let phonePatternValidator = PatternMatchingValidator<String>(pattern: phoneRegEx) { result in
             if result {
                 return []
@@ -246,7 +247,7 @@ struct ContentView: HookView {
                 .submitLabel(.next)
             
             if let error = fieldState.error.first {
-                VStack {
+                VStack(alignment: .leading) {
                     textField
                     Text(error)
                         .font(.system(size: 10)).foregroundColor(.red)

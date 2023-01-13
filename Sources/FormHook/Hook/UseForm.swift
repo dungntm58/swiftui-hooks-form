@@ -17,7 +17,7 @@ public func useForm<FieldName>(
     shouldUnregister: Bool = true,
     shouldFocusError: Bool,
     delayErrorInNanoseconds: UInt64 = 0,
-    @_implicitSelfCapture onFocusedField: @escaping (FieldName) -> Void
+    @_implicitSelfCapture onFocusField: @escaping (FieldName) -> Void
 ) -> FormControl<FieldName> where FieldName: Hashable {
     useForm(
         FormOption(
@@ -28,7 +28,7 @@ public func useForm<FieldName>(
             shouldUnregister: shouldUnregister,
             shouldFocusError: shouldFocusError,
             delayErrorInNanoseconds: delayErrorInNanoseconds,
-            onFocusedField: onFocusedField
+            onFocusField: onFocusField
         )
     )
 }
@@ -82,7 +82,7 @@ public struct FormOption<FieldName> where FieldName: Hashable {
          shouldUnregister: Bool,
          shouldFocusError: Bool,
          delayErrorInNanoseconds: UInt64,
-         onFocusedField: @escaping (FieldName) -> Void
+         onFocusField: @escaping (FieldName) -> Void
     ) {
         self.mode = mode
         self.reValidateMode = reValidateMode
@@ -91,7 +91,7 @@ public struct FormOption<FieldName> where FieldName: Hashable {
         self.shouldUnregister = shouldUnregister
         self.shouldFocusError = shouldFocusError
         self.delayErrorInNanoseconds = delayErrorInNanoseconds
-        self.focusedFieldOption = .init(onFocusedField)
+        self.focusedFieldOption = .init(onFocusField)
     }
 
     @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
@@ -115,11 +115,11 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     }
 
     struct FocusedFieldOption {
-        private let _focusedFieldBinder: Any?
-        private let onFocusedField: ((FieldName) -> Void)?
+        private let anyFocusedFieldBinder: Any?
+        private let onFocusField: ((FieldName) -> Void)?
 
         var hasFocusedFieldBinder: Bool {
-            _focusedFieldBinder != nil
+            anyFocusedFieldBinder != nil
         }
 
         var focusedFieldBindingValue: FieldName? {
@@ -130,26 +130,27 @@ public struct FormOption<FieldName> where FieldName: Hashable {
         }
 
         @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
-        private var focusedFieldBinder: FocusState<FieldName?>.Binding? {
-            _focusedFieldBinder as? FocusState<FieldName?>.Binding
+        var focusedFieldBinder: FocusState<FieldName?>.Binding? {
+            anyFocusedFieldBinder as? FocusState<FieldName?>.Binding
         }
 
         @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
         init(_ focusedFieldBinder: FocusState<FieldName?>.Binding) {
-            self._focusedFieldBinder = focusedFieldBinder
-            self.onFocusedField = nil
+            self.anyFocusedFieldBinder = focusedFieldBinder
+            self.onFocusField = nil
         }
 
-        init(_ onFocusedField: @escaping (FieldName) -> Void) {
-            self._focusedFieldBinder = nil
-            self.onFocusedField = onFocusedField
+        init(_ onFocusField: @escaping (FieldName) -> Void) {
+            self.anyFocusedFieldBinder = nil
+            self.onFocusField = onFocusField
         }
 
         func triggerFocus(on field: FieldName) {
+            if let onFocusField {
+                return onFocusField(field)
+            }
             if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
                 focusedFieldBinder?.wrappedValue = field
-            } else {
-                onFocusedField?(field)
             }
         }
     }

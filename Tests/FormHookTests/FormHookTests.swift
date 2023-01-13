@@ -37,7 +37,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -129,7 +129,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: false,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -170,7 +170,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -348,7 +348,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -406,7 +406,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -544,7 +544,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -853,7 +853,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -917,7 +917,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -1022,7 +1022,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -1513,7 +1513,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -1559,6 +1559,7 @@ final class FormHookTests: QuickSpec {
                     let result = await formControl.trigger(name: .a)
                     expect(result) == false
                     
+                    try await Task.sleep(nanoseconds: 110_000_000)
                     let fieldState = await formControl.getFieldState(name: .a)
                     expect(fieldState.isInvalid) == true
                     expect(fieldState.error) == ["Failed to validate a"]
@@ -1747,7 +1748,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },
@@ -1879,7 +1880,7 @@ final class FormHookTests: QuickSpec {
                     shouldUnregister: false,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: 0,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 formControl = .init(options: options, formState: .init(
                     get: { formState },

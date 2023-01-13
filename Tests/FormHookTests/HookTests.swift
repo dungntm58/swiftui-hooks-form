@@ -32,7 +32,7 @@ class HookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: true,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 )
                 await useFormSpec.refreshTester(options: options)
             }
@@ -57,7 +57,7 @@ class HookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: true,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 ), shouldUnregister: true)
                 await useControllerSpec.formControl.syncFormState()
             }
@@ -97,7 +97,7 @@ class HookTests: QuickSpec {
                     shouldUnregister: true,
                     shouldFocusError: true,
                     delayErrorInNanoseconds: true,
-                    onFocusedField: { _ in }
+                    onFocusField: { _ in }
                 ))
                 await useControllerSpec.formControl.syncFormState()
             }

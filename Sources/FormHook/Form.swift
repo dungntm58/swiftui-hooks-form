@@ -588,7 +588,7 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
                 shouldUnregister: Bool = true,
                 shouldFocusError: Bool = true,
                 delayErrorInNanoseconds: UInt64 = 0,
-                @_implicitSelfCapture onFocusedField: @escaping (FieldName) -> Void,
+                @_implicitSelfCapture onFocusField: @escaping (FieldName) -> Void,
                 @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
     ) {
         self.formOptions = .init(
@@ -599,7 +599,7 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
             shouldUnregister: shouldUnregister,
             shouldFocusError: shouldFocusError,
             delayErrorInNanoseconds: delayErrorInNanoseconds,
-            onFocusedField: onFocusedField
+            onFocusField: onFocusField
         )
         self.contentBuilder = content
     }
