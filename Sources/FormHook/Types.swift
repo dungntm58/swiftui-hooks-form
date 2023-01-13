@@ -9,11 +9,13 @@ import Combine
 import SwiftUI
 
 public struct RegisterOption<Value> {
+    let fieldOrdinal: Int?
     let rules: any Validator<Value>
     let defaultValue: Value
     let shouldUnregister: Bool
 
-    public init(rules: any Validator<Value>, defaultValue: Value, shouldUnregister: Bool = true) {
+    public init(fieldOrdinal: Int? = nil, rules: any Validator<Value>, defaultValue: Value, shouldUnregister: Bool = true) {
+        self.fieldOrdinal = fieldOrdinal
         self.rules = rules
         self.defaultValue = defaultValue
         self.shouldUnregister = shouldUnregister
@@ -81,7 +83,7 @@ public typealias FieldRegistration<Value> = Binding<Value>
 public typealias FormValue<FieldName> = [FieldName: Any] where FieldName: Hashable
 
 extension FormValue {
-    mutating func update(other: Self) {
+    mutating func unioned(_ other: Self) {
         for (key, value) in other {
             updateValue(value, forKey: key)
         }
@@ -122,7 +124,7 @@ public struct FormError<FieldName>: Equatable where FieldName: Hashable {
         self.errorFields.remove(name)
     }
 
-    func rewrite(from other: Self) -> Self {
+    func union(_ other: Self) -> Self {
         let errorFields = errorFields.union(other.errorFields)
         var newMessages = messages
         for (key, newValue) in other.messages {
@@ -210,7 +212,7 @@ public struct FieldState {
 }
 
 protocol FieldProtocol {
-    var index: Int { get }
+    var fieldOrdinal: Int { get }
     var shouldUnregister: Bool { get }
     func computeMessages() async -> (Bool, [String])
 }

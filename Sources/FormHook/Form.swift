@@ -18,6 +18,19 @@ public class FormControl<FieldName> where FieldName: Hashable {
     private(set) public var formState: FormState<FieldName>
     var instantFormState: FormState<FieldName>
 
+    var _currentFocusedField: FieldName?
+    var currentFocusedField: FieldName? {
+        get {
+            _currentFocusedField ?? options.focusedFieldOption.focusedFieldBindingValue
+        }
+        set {
+            if options.focusedFieldOption.hasFocusedFieldBinder {
+                return
+            }
+            _currentFocusedField = newValue
+        }
+    }
+
     init(options: FormOption<FieldName>, formState: Binding<FormState<FieldName>>) {
         self.options = options
         self.fields = [:]
@@ -34,8 +47,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 instantFormState.formValues[name] = options.defaultValue
             }
             field.options = options
+            if let fieldOrdinal = options.fieldOrdinal {
+                field.fieldOrdinal = fieldOrdinal
+            }
         } else {
-            field = Field(index: fields.count, name: name, options: options, control: self)
+            field = Field(fieldOrdinal: options.fieldOrdinal ?? fields.count, name: name, options: options, control: self)
             fields[name] = field
             instantFormState.formValues[name] = options.defaultValue
         }
@@ -98,7 +114,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 case .success(let formValues):
                     isOveralValid = true
                     errors = .init()
-                    instantFormState.formValues.update(other: formValues)
+                    instantFormState.formValues.unioned(formValues)
                 case .failure(let e):
                     isOveralValid = false
                     errors = e
@@ -138,7 +154,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 case .success(let formValues):
                     isOveralValid = true
                     errors = .init()
-                    instantFormState.formValues.update(other: formValues)
+                    instantFormState.formValues.unioned(formValues)
                 case .failure(let e):
                     isOveralValid = false
                     errors = e
@@ -176,25 +192,37 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await onValid(instantFormState.formValues, errors)
             } else if let onInvalid {
                 try await onInvalid(instantFormState.formValues, errors)
-                await focusError(with: errors)
             }
             await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: errors.errorFields.isEmpty)
+            if !isOveralValid {
+                await focusError(with: errors)
+            }
         } catch {
             await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: false)
             throw error
         }
     }
 
-    private func focusError(with errors: FormError<FieldName>) async {
+    @MainActor
+    private func focusError(with errors: FormError<FieldName>) {
         guard options.shouldFocusError else {
             return
         }
-        let fields = fields
-            .sorted { $0.value.index < $1.value.index }
-        guard let firstErrorField = fields.first(where: { errors.errorFields.contains($0.key) })?.key else {
+        let fields = fields.sorted { $0.value.fieldOrdinal < $1.value.fieldOrdinal }
+        let firstErrorField = fields.first(where: { errors.errorFields.contains($0.key) })?.key
+        guard let firstErrorField else {
             return
         }
-        await options.focusedFieldOption.triggerFocus(on: firstErrorField)
+        currentFocusedField = firstErrorField
+        options.focusedFieldOption.triggerFocus(on: firstErrorField)
+    }
+
+    @MainActor
+    private func focusOnCurrentField() {
+        guard let currentFocusedField else {
+            return
+        }
+        options.focusedFieldOption.triggerFocus(on: currentFocusedField)
     }
 
     private func postHandleSubmit(isOveralValid: Bool, errors: FormError<FieldName>, isSubmitSuccessful: Bool) async {
@@ -214,6 +242,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                 self?.instantFormState.errors = errors
                 await self?.syncFormState()
+                await self?.focusOnCurrentField()
             }
         }
     }
@@ -301,7 +330,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
             case .success:
                 break
             case .failure(let e):
-                instantFormState.errors = instantFormState.errors.rewrite(from: e)
+                instantFormState.errors = instantFormState.errors.union(e)
                 instantFormState.isValid = false
             }
         } else if let field = fields[name] {
@@ -335,10 +364,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
             case .success(let formValues):
                 isValid = true
                 errors = instantFormState.errors
-                instantFormState.formValues.update(other: formValues)
+                instantFormState.formValues.unioned(formValues)
             case .failure(let e):
                 isValid = false
-                errors = instantFormState.errors.rewrite(from: e)
+                errors = instantFormState.errors.union(e)
             }
         } else {
             (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
@@ -377,6 +406,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                 self?.instantFormState.errors = errors
                 await self?.syncFormState()
+                await self?.focusOnCurrentField()
             }
         }
         return isValid
@@ -399,7 +429,7 @@ extension FormControl {
             switch result {
             case .success(let formValues):
                 isValid = true
-                instantFormState.formValues.update(other: formValues)
+                instantFormState.formValues.unioned(formValues)
             case .failure(let e):
                 isValid = false
                 currentErrorNotifyTask?.cancel()
@@ -412,6 +442,7 @@ extension FormControl {
                         try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                         self?.instantFormState.errors = e
                         await self?.syncFormState()
+                        await self?.focusOnCurrentField()
                     }
                 }
             }
@@ -445,6 +476,7 @@ extension FormControl {
                     try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                     self?.instantFormState.errors = errors
                     await self?.syncFormState()
+                    await self?.focusOnCurrentField()
                 }
             }
             instantFormState.isValid = isValid
@@ -463,7 +495,7 @@ extension FormControl {
 
 private extension FormControl {
     class Field<Value>: FieldProtocol {
-        let index: Int
+        var fieldOrdinal: Int
         let name: FieldName
         var options: RegisterOption<Value> {
             didSet {
@@ -476,8 +508,8 @@ private extension FormControl {
         unowned var control: FormControl<FieldName>
         var value: Binding<Value>
 
-        init(index: Int, name: FieldName, options: RegisterOption<Value>, control: FormControl<FieldName>) {
-            self.index = index
+        init(fieldOrdinal: Int, name: FieldName, options: RegisterOption<Value>, control: FormControl<FieldName>) {
+            self.fieldOrdinal = fieldOrdinal
             self.name = name
             self.options = options
             self.control = control
@@ -501,7 +533,7 @@ private extension FormControl {
         .init { [weak self] in
             self?.instantFormState.formValues[name] as? Value ?? defaultValue
         } set: { [weak self] value in
-            guard let self = self else {
+            guard let self else {
                 return
             }
             self.instantFormState.formValues[name] = value
@@ -512,8 +544,16 @@ private extension FormControl {
                 return
             }
             Task {
-                await self.trigger(name: name)
-                await self.options.focusedFieldOption.triggerFocus(on: name)
+                guard await self.trigger(name: name) else {
+                    return
+                }
+                await MainActor.run {
+                    if self.currentFocusedField == name {
+                        return
+                    }
+                    self.currentFocusedField = name
+                    self.options.focusedFieldOption.triggerFocus(on: name)
+                }
             }
         }
     }

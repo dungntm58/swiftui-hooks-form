@@ -115,24 +115,39 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     }
 
     struct FocusedFieldOption {
-        let focusedFieldBinder: Any?
-        let onFocusedField: ((FieldName) -> Void)?
+        private let _focusedFieldBinder: Any?
+        private let onFocusedField: ((FieldName) -> Void)?
+
+        var hasFocusedFieldBinder: Bool {
+            _focusedFieldBinder != nil
+        }
+
+        var focusedFieldBindingValue: FieldName? {
+            if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
+                return focusedFieldBinder?.wrappedValue
+            }
+            return nil
+        }
+
+        @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
+        private var focusedFieldBinder: FocusState<FieldName?>.Binding? {
+            _focusedFieldBinder as? FocusState<FieldName?>.Binding
+        }
 
         @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
         init(_ focusedFieldBinder: FocusState<FieldName?>.Binding) {
-            self.focusedFieldBinder = focusedFieldBinder
+            self._focusedFieldBinder = focusedFieldBinder
             self.onFocusedField = nil
         }
 
         init(_ onFocusedField: @escaping (FieldName) -> Void) {
-            self.focusedFieldBinder = nil
+            self._focusedFieldBinder = nil
             self.onFocusedField = onFocusedField
         }
 
-        @MainActor
         func triggerFocus(on field: FieldName) {
-            if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *), let focusedFieldBinder = focusedFieldBinder {
-                (focusedFieldBinder as? FocusState<FieldName?>.Binding)?.wrappedValue = field
+            if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
+                focusedFieldBinder?.wrappedValue = field
             } else {
                 onFocusedField?(field)
             }

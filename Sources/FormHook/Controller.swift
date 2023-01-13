@@ -27,6 +27,7 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
     let rules: any Validator<Value>
     let shouldUnregister: Bool
     let unregisterOption: UnregisterOption
+    let fieldOrdinal: Int?
     let render: (ControllerRenderOption<FieldName, Value>) -> Content
 
     public init(
@@ -35,6 +36,7 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
         rules: any Validator<Value> = NoopValidator(),
         shouldUnregister: Bool = true,
         unregisterOption: UnregisterOption = [],
+        fieldOrdinal: Int? = nil,
         @ViewBuilder render: @escaping (ControllerRenderOption<FieldName, Value>) -> Content
     ) {
         self.name = name
@@ -43,11 +45,12 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
         self.render = render
         self.shouldUnregister = true
         self.unregisterOption = unregisterOption
+        self.fieldOrdinal = fieldOrdinal
     }
 
     public var body: some View {
         HookScope {
-            let renderOption = useController(name: name, defaultValue: defaultValue, rules: rules, shouldUnregister: shouldUnregister, unregisterOption: unregisterOption)
+            let renderOption = useController(name: name, defaultValue: defaultValue, rules: rules, shouldUnregister: shouldUnregister, unregisterOption: unregisterOption, fieldOrdinal: fieldOrdinal)
             render(renderOption)
         }
     }

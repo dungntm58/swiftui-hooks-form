@@ -13,10 +13,11 @@ public func useController<FieldName, Value>(
     defaultValue: Value,
     rules: any Validator<Value>,
     shouldUnregister: Bool = true,
-    unregisterOption: UnregisterOption = []
+    unregisterOption: UnregisterOption = [],
+    fieldOrdinal: Int? = nil
 ) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
     let form = useContext(Context<FormControl<FieldName>>.self)
-    let registration = form.register(name: name, options: RegisterOption(rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister))
+    let registration = form.register(name: name, options: RegisterOption(fieldOrdinal: fieldOrdinal, rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister))
 
     let preservedChangedArray = [
         AnyEquatable(name),
