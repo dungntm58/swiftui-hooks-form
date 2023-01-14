@@ -18,19 +18,6 @@ public class FormControl<FieldName> where FieldName: Hashable {
     private(set) public var formState: FormState<FieldName>
     var instantFormState: FormState<FieldName>
 
-    var _currentFocusedField: FieldName?
-    var currentFocusedField: FieldName? {
-        get {
-            _currentFocusedField ?? options.focusedFieldOption.focusedFieldBindingValue
-        }
-        set {
-            if options.focusedFieldOption.hasFocusedFieldBinder {
-                return
-            }
-            _currentFocusedField = newValue
-        }
-    }
-
     init(options: FormOption<FieldName>, formState: Binding<FormState<FieldName>>) {
         self.options = options
         self.fields = [:]
@@ -213,16 +200,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
         guard let firstErrorField else {
             return
         }
-        currentFocusedField = firstErrorField
         options.focusedFieldOption.triggerFocus(on: firstErrorField)
-    }
-
-    @MainActor
-    private func focusOnCurrentField() {
-        guard let currentFocusedField else {
-            return
-        }
-        options.focusedFieldOption.triggerFocus(on: currentFocusedField)
     }
 
     private func postHandleSubmit(isOveralValid: Bool, errors: FormError<FieldName>, isSubmitSuccessful: Bool) async {
@@ -242,7 +220,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                 self?.instantFormState.errors = errors
                 await self?.syncFormState()
-                await self?.focusOnCurrentField()
+                await self?.focusError(with: errors)
             }
         }
     }
@@ -406,7 +384,9 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                 self?.instantFormState.errors = errors
                 await self?.syncFormState()
-                await self?.focusOnCurrentField()
+                if validationNames.count == 1, let firstField = validationNames.first {
+                    await self?.options.focusedFieldOption.triggerFocus(on: firstField)
+                }
             }
         }
         return isValid
@@ -442,7 +422,7 @@ extension FormControl {
                         try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                         self?.instantFormState.errors = e
                         await self?.syncFormState()
-                        await self?.focusOnCurrentField()
+                        await self?.focusError(with: e)
                     }
                 }
             }
@@ -476,7 +456,7 @@ extension FormControl {
                     try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                     self?.instantFormState.errors = errors
                     await self?.syncFormState()
-                    await self?.focusOnCurrentField()
+                    await self?.focusError(with: errors)
                 }
             }
             instantFormState.isValid = isValid
@@ -547,13 +527,10 @@ private extension FormControl {
                 guard await self.trigger(name: name) else {
                     return
                 }
-                await MainActor.run {
-                    if self.currentFocusedField == name {
-                        return
-                    }
-                    self.currentFocusedField = name
-                    self.options.focusedFieldOption.triggerFocus(on: name)
+                guard self.options.delayErrorInNanoseconds == 0 else {
+                    return
                 }
+                await self.options.focusedFieldOption.triggerFocus(on: name)
             }
         }
     }
