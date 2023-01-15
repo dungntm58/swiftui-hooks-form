@@ -10,13 +10,32 @@ import SwiftUI
 import Hooks
 
 public class FormControl<FieldName> where FieldName: Hashable {
-    var currentErrorNotifyTask: Task<Void, Error>?
-
     var options: FormOption<FieldName>
-    var fields: [FieldName: FieldProtocol]
+
+    private var currentErrorNotifyTask: Task<Void, Error>?
+    private var fields: [FieldName: FieldProtocol]
+
+    private var _currentFocusedField: FieldName?
+    
+    @MainActor
+    private var currentFocusedField: FieldName? {
+        get {
+            _currentFocusedField ?? options.focusedFieldOption.focusedFieldBindingValue
+        }
+        set {
+            if let newValue {
+                options.focusedFieldOption.triggerFocus(on: newValue)
+            }
+            if options.focusedFieldOption.hasFocusedFieldBinder {
+                return
+            }
+            _currentFocusedField = newValue
+        }
+    }
+
+    var instantFormState: FormState<FieldName>
     @MainActor @Binding
     private(set) public var formState: FormState<FieldName>
-    var instantFormState: FormState<FieldName>
 
     init(options: FormOption<FieldName>, formState: Binding<FormState<FieldName>>) {
         self.options = options
@@ -181,47 +200,9 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await onInvalid(instantFormState.formValues, errors)
             }
             await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: errors.errorFields.isEmpty)
-            if !isOveralValid {
-                await focusError(with: errors)
-            }
         } catch {
             await postHandleSubmit(isOveralValid: isOveralValid, errors: errors, isSubmitSuccessful: false)
             throw error
-        }
-    }
-
-    @MainActor
-    private func focusError(with errors: FormError<FieldName>) {
-        guard options.shouldFocusError else {
-            return
-        }
-        let fields = fields.sorted { $0.value.fieldOrdinal < $1.value.fieldOrdinal }
-        let firstErrorField = fields.first(where: { errors.errorFields.contains($0.key) })?.key
-        guard let firstErrorField else {
-            return
-        }
-        options.focusedFieldOption.triggerFocus(on: firstErrorField)
-    }
-
-    private func postHandleSubmit(isOveralValid: Bool, errors: FormError<FieldName>, isSubmitSuccessful: Bool) async {
-        instantFormState.isValid = isOveralValid
-        instantFormState.submissionState = .submitted
-        instantFormState.isSubmitSuccessful = isSubmitSuccessful
-        currentErrorNotifyTask?.cancel()
-        instantFormState.submitCount += 1
-        if options.delayErrorInNanoseconds == 0 || isOveralValid {
-            currentErrorNotifyTask = nil
-            instantFormState.errors = errors
-            await syncFormState()
-        } else {
-            await syncFormState()
-            let delayErrorInNanoseconds = options.delayErrorInNanoseconds
-            currentErrorNotifyTask = Task { [weak self] in
-                try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
-                self?.instantFormState.errors = errors
-                await self?.syncFormState()
-                await self?.focusError(with: errors)
-            }
         }
     }
 
@@ -302,23 +283,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
         guard options.contains(.shouldValidate) else {
             return await syncFormState()
         }
-        if let resolver = self.options.resolver {
-            let result = await resolver(instantFormState.formValues, self.options.context, [name])
-            switch result {
-            case .success:
-                break
-            case .failure(let e):
-                instantFormState.errors = instantFormState.errors.union(e)
-                instantFormState.isValid = false
-            }
-        } else if let field = fields[name] {
-            let (isValid, messages) = await field.computeMessages()
-            instantFormState.errors.setMessages(name: name, messages: messages, isValid: isValid)
-            if !isValid {
-                instantFormState.isValid = false
-            }
-        }
-        return await syncFormState()
+        await trigger(name: name)
     }
 
     public func getFieldState(name: FieldName) -> FieldState {
@@ -330,7 +295,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
     }
 
     @discardableResult
-    public func trigger(names: [FieldName]) async -> Bool {
+    public func trigger(names: [FieldName], shouldFocus: Bool = false) async -> Bool {
         let validationNames = names.isEmpty ? fields.map { $0.key } : names
         instantFormState.isValidating = true
         await syncFormState()
@@ -370,13 +335,18 @@ public class FormControl<FieldName> where FieldName: Hashable {
             }
         }
         if !isValid {
-            instantFormState.isValid = false
+            instantFormState.isValid = isValid
         }
         instantFormState.isValidating = false
+
         currentErrorNotifyTask?.cancel()
-        if options.delayErrorInNanoseconds == 0 {
+        if options.delayErrorInNanoseconds == 0 || isValid {
+            currentErrorNotifyTask = nil
             instantFormState.errors = errors
             await syncFormState()
+            if shouldFocus {
+                await focusFieldAfterTrigger(names: validationNames, errorFields: errors.errorFields)
+            }
         } else {
             await syncFormState()
             let delayErrorInNanoseconds = options.delayErrorInNanoseconds
@@ -384,8 +354,8 @@ public class FormControl<FieldName> where FieldName: Hashable {
                 try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
                 self?.instantFormState.errors = errors
                 await self?.syncFormState()
-                if validationNames.count == 1, let firstField = validationNames.first {
-                    await self?.options.focusedFieldOption.triggerFocus(on: firstField)
+                if shouldFocus {
+                    await self?.focusFieldAfterTrigger(names: validationNames, errorFields: errors.errorFields)
                 }
             }
         }
@@ -393,8 +363,8 @@ public class FormControl<FieldName> where FieldName: Hashable {
     }
 
     @discardableResult
-    public func trigger(name: FieldName...) async -> Bool {
-        await trigger(names: name)
+    public func trigger(name: FieldName..., shouldFocus: Bool = false) async -> Bool {
+        await trigger(names: name, shouldFocus: shouldFocus)
     }
 }
 
@@ -404,64 +374,36 @@ extension FormControl {
             return
         }
         if let resolver = options.resolver {
-            let isValid: Bool
             let result = await resolver(instantFormState.formValues, options.context, Array(fields.keys))
             switch result {
             case .success(let formValues):
-                isValid = true
+                instantFormState.isValid = true
                 instantFormState.formValues.unioned(formValues)
+                await syncFormState()
             case .failure(let e):
-                isValid = false
-                currentErrorNotifyTask?.cancel()
-                if options.delayErrorInNanoseconds == 0 || isValid {
-                    currentErrorNotifyTask = nil
-                    instantFormState.errors = e
-                } else {
-                    let delayErrorInNanoseconds = options.delayErrorInNanoseconds
-                    currentErrorNotifyTask = Task { [weak self] in
-                        try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
-                        self?.instantFormState.errors = e
-                        await self?.syncFormState()
-                        await self?.focusError(with: e)
-                    }
-                }
+                await onResultPostUpdateValid(e, isValid: false)
             }
-            instantFormState.isValid = isValid
-        } else {
-            let (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
-                var errors = instantFormState.errors
-                for (key, field) in fields {
-                    group.addTask {
-                        let (isValid, messages) = await field.computeMessages()
-                        return KeyValidationResult(key: key, isValid: isValid, messages: messages)
-                    }
-                }
-                for await keyResult in group {
-                    errors.setMessages(name: keyResult.key, messages: keyResult.messages, isValid: keyResult.isValid)
-                    if keyResult.isValid {
-                        continue
-                    }
-                    group.cancelAll()
-                    return (false, errors)
-                }
-                return (true, errors)
-            }
-            currentErrorNotifyTask?.cancel()
-            if options.delayErrorInNanoseconds == 0 || isValid {
-                currentErrorNotifyTask = nil
-                instantFormState.errors = errors
-            } else {
-                let delayErrorInNanoseconds = options.delayErrorInNanoseconds
-                currentErrorNotifyTask = Task { [weak self] in
-                    try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
-                    self?.instantFormState.errors = errors
-                    await self?.syncFormState()
-                    await self?.focusError(with: errors)
-                }
-            }
-            instantFormState.isValid = isValid
+            return
         }
-        await syncFormState()
+        let (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
+            var errors = instantFormState.errors
+            for (key, field) in fields {
+                group.addTask {
+                    let (isValid, messages) = await field.computeMessages()
+                    return KeyValidationResult(key: key, isValid: isValid, messages: messages)
+                }
+            }
+            for await keyResult in group {
+                errors.setMessages(name: keyResult.key, messages: keyResult.messages, isValid: keyResult.isValid)
+                if keyResult.isValid {
+                    continue
+                }
+                group.cancelAll()
+                return (false, errors)
+            }
+            return (true, errors)
+        }
+        await onResultPostUpdateValid(errors, isValid: isValid)
     }
 
     @MainActor
@@ -500,10 +442,6 @@ private extension FormControl {
             options.shouldUnregister
         }
 
-        func computeResult() async -> Bool {
-            await options.rules.isValid(value.wrappedValue)
-        }
-
         func computeMessages() async -> (Bool, [String]) {
             await options.rules.computeMessage(value: value.wrappedValue)
         }
@@ -524,13 +462,7 @@ private extension FormControl {
                 return
             }
             Task {
-                guard await self.trigger(name: name) else {
-                    return
-                }
-                guard self.options.delayErrorInNanoseconds == 0 else {
-                    return
-                }
-                await self.options.focusedFieldOption.triggerFocus(on: name)
+                await self.trigger(name: name, shouldFocus: true)
             }
         }
     }
@@ -543,6 +475,62 @@ private extension FormControl {
             return false
         }
         return options.reValidateMode.contains(.onChange)
+    }
+
+    func postHandleSubmit(isOveralValid: Bool, errors: FormError<FieldName>, isSubmitSuccessful: Bool) async {
+        instantFormState.submissionState = .submitted
+        instantFormState.isSubmitSuccessful = isSubmitSuccessful
+        instantFormState.submitCount += 1
+        await onResultPostUpdateValid(errors, isValid: isOveralValid)
+    }
+
+    @MainActor
+    func focusFieldAfterTrigger(names: [FieldName], errorFields: Set<FieldName>) {
+        let focusField: FieldName?
+        if names.count == 1  {
+            focusField = names[0]
+            if currentFocusedField != nil && currentFocusedField != focusField {
+                return
+            }
+        } else {
+            focusField = names.first(where: errorFields.contains)
+        }
+        guard let focusField else {
+            return
+        }
+        currentFocusedField = focusField
+    }
+
+    func onResultPostUpdateValid(_ errors: FormError<FieldName>, isValid: Bool) async {
+        instantFormState.isValid = isValid
+        currentErrorNotifyTask?.cancel()
+        if options.delayErrorInNanoseconds == 0 || isValid {
+            currentErrorNotifyTask = nil
+            instantFormState.errors = errors
+            await syncFormState()
+            return await focusError(with: errors)
+        }
+        await syncFormState()
+        let delayErrorInNanoseconds = options.delayErrorInNanoseconds
+        currentErrorNotifyTask = Task { [weak self] in
+            try await Task.sleep(nanoseconds: delayErrorInNanoseconds)
+            self?.instantFormState.errors = errors
+            await self?.syncFormState()
+            await self?.focusError(with: errors)
+        }
+    }
+
+    @MainActor
+    func focusError(with errors: FormError<FieldName>) {
+        guard options.shouldFocusError else {
+            return
+        }
+        let fields = fields.sorted { $0.value.fieldOrdinal < $1.value.fieldOrdinal }
+        let firstErrorField = fields.first(where: { errors.errorFields.contains($0.key) })?.key
+        guard let firstErrorField else {
+            return
+        }
+        currentFocusedField = firstErrorField
     }
 }
 

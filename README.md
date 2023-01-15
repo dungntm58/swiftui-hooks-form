@@ -135,7 +135,7 @@ var hookBody: some View {
 // this code achieves the same
 
 @ViewBuilder
-var hookBody: some View {
+var body: some View {
     ContextualForm(...) { form in
         let (field, fieldState, formState) = useController(name: FieldName.username, defaultValue: "")
         TextField("Username", text: field.value)

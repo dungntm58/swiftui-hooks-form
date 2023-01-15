@@ -118,6 +118,22 @@ public struct FormOption<FieldName> where FieldName: Hashable {
         private let anyFocusedFieldBinder: Any?
         private let onFocusField: ((FieldName) -> Void)?
 
+        var hasFocusedFieldBinder: Bool {
+            anyFocusedFieldBinder != nil
+        }
+
+        var focusedFieldBindingValue: FieldName? {
+            if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
+                return focusedFieldBinder?.wrappedValue
+            }
+            return nil
+        }
+
+        @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
+        var focusedFieldBinder: FocusState<FieldName?>.Binding? {
+            anyFocusedFieldBinder as? FocusState<FieldName?>.Binding
+        }
+
         @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
         init(_ focusedFieldBinder: FocusState<FieldName?>.Binding) {
             self.anyFocusedFieldBinder = focusedFieldBinder
@@ -135,7 +151,6 @@ public struct FormOption<FieldName> where FieldName: Hashable {
                 return onFocusField(field)
             }
             if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
-                let focusedFieldBinder = anyFocusedFieldBinder as? FocusState<FieldName?>.Binding
                 focusedFieldBinder?.wrappedValue = field
             }
         }

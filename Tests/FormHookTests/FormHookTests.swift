@@ -21,6 +21,7 @@ final class FormHookTests: QuickSpec {
         triggerSpecs()
         resolverSpecs()
         changeFieldValueSpecs()
+        focusSpecs()
     }
     
     func registerSpecs() {
@@ -35,7 +36,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -59,7 +60,6 @@ final class FormHookTests: QuickSpec {
                 context("value for key \"a\" changes") {
                     beforeEach {
                         aBinder.wrappedValue = "a"
-                        await formControl.syncFormState()
                     }
                     
                     context("registers field \"a\" with the same options") {
@@ -78,21 +78,20 @@ final class FormHookTests: QuickSpec {
                     context("registers field \"a\" with other options") {
                         beforeEach {
                             aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue2))
-                            await formControl.syncFormState()
                         }
                         
                         it("field \"a\" changes its default value, and doesn't change its value") {
-                            let formState = await formControl.formState
+                            let formState = formControl.instantFormState
                             expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue2)) == true
                             expect(areEqual(first: formState.formValues[.a], second: "a")) == true
                         }
                     }
                     
                     it("key \"a\" and formState are dirty") {
-                        let fieldState = await formControl.getFieldState(name: .a)
+                        let fieldState = formControl.instantFormState.getFieldState(name: .a)
                         expect(fieldState.isDirty) == true
                         
-                        let formState = await formControl.formState
+                        let formState = formControl.instantFormState
                         expect(formState.isDirty) == true
                     }
                 }
@@ -100,11 +99,10 @@ final class FormHookTests: QuickSpec {
                 context("registers field \"a\" with other options") {
                     beforeEach {
                         aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: testDefaultValue2))
-                        await formControl.syncFormState()
                     }
                     
                     it("field \"a\" changes its value") {
-                        let formState = await formControl.formState
+                        let formState = formControl.instantFormState
                         expect(areEqual(first: formState.defaultValues[.a], second: testDefaultValue2)) == true
                         expect(areEqual(first: formState.formValues[.a], second: testDefaultValue2)) == true
                     }
@@ -127,7 +125,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: false,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -168,7 +166,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -346,7 +344,7 @@ final class FormHookTests: QuickSpec {
                     resolver: resolverProxy.resolver(values:context:fieldNames:),
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -404,7 +402,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -420,16 +418,15 @@ final class FormHookTests: QuickSpec {
             context("controller of field \"a\" changes its value to \"abc\"") {
                 beforeEach {
                     aBinder.wrappedValue = "abc"
-                    await formControl.syncFormState()
                 }
                 
                 it("value of \"a\" equals \"abc\"") {
-                    let formState = await formControl.formState
+                    let formState = formControl.instantFormState
                     expect(areEqual(first: formState.formValues[.a], second: "abc")) == true
                 }
                 
                 it("field \"a\" is dirty") {
-                    let fieldState = await formControl.getFieldState(name: .a)
+                    let fieldState = formControl.getFieldState(name: .a)
                     expect(fieldState.isDirty) == true
                 }
                 
@@ -491,7 +488,6 @@ final class FormHookTests: QuickSpec {
                         context("key \"a\" has been already invalid") {
                             beforeEach {
                                 formControl.instantFormState.errors.setMessages(name: .a, messages: ["Failed to validate a"], isValid: false)
-                                await formControl.syncFormState()
                                 await formControl.reset(name: .a, options: .keepError)
                             }
                             
@@ -542,7 +538,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -851,7 +847,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -915,7 +911,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -1020,7 +1016,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -1039,15 +1035,11 @@ final class FormHookTests: QuickSpec {
             context("with mode .onSubmit") {
                 context("invoke handleSubmit action") {
                     it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
-                        do {
-                            try await formControl.handleSubmit(onValid: { _, _ in })
-                            let formState = await formControl.formState
-                            expect(formState.submitCount) == 1
-                            expect(formState.isSubmitSuccessful) == true
-                            expect(formState.submissionState) == .submitted
-                        } catch {
-                            fail()
-                        }
+                        try await formControl.handleSubmit(onValid: { _, _ in })
+                        let formState = await formControl.formState
+                        expect(formState.submitCount) == 1
+                        expect(formState.isSubmitSuccessful) == true
+                        expect(formState.submissionState) == .submitted
                     }
                     
                     context("key \"a\" is invalid") {
@@ -1062,43 +1054,31 @@ final class FormHookTests: QuickSpec {
                             }
                             
                             it("formState accepts errors after 100ms") {
-                                do {
-                                    try await formControl.handleSubmit(onValid: { _, _ in })
-                                    let formState = await formControl.formState
-                                    expect(formState.errors.errorFields.isEmpty) == true
-                                    
-                                    try await Task.sleep(nanoseconds: 110_000_000)
-                                    let fieldState = await formControl.getFieldState(name: .a)
-                                    expect(fieldState.isInvalid) == true
-                                    expect(fieldState.error) == ["Failed to validate a"]
-                                } catch {
-                                    fail()
-                                }
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.errors.errorFields).to(beEmpty())
+                                
+                                try await Task.sleep(nanoseconds: 110_000_000)
+                                let fieldState = await formControl.getFieldState(name: .a)
+                                expect(fieldState.isInvalid) == true
+                                expect(fieldState.error) == ["Failed to validate a"]
                             }
                         }
                         
                         it("formState is invalid") {
-                            do {
-                                try await formControl.handleSubmit(onValid: { _, _ in })
-                                let formState = await formControl.formState
-                                expect(formState.isValid) == false
-                                expect(formState.errors[.a]) == ["Failed to validate a"]
-                                expect(formState.errors[.b]).to(beEmpty())
-                            } catch {
-                                fail()
-                            }
+                            try await formControl.handleSubmit(onValid: { _, _ in })
+                            let formState = await formControl.formState
+                            expect(formState.isValid) == false
+                            expect(formState.errors[.a]) == ["Failed to validate a"]
+                            expect(formState.errors[.b]).to(beEmpty())
                         }
                         
                         it("submitCount is 1, isSubmitSuccessful is false, and submissionState is .submitted") {
-                            do {
-                                try await formControl.handleSubmit(onValid: { _, _ in })
-                                let formState = await formControl.formState
-                                expect(formState.submitCount) == 1
-                                expect(formState.isSubmitSuccessful) == false
-                                expect(formState.submissionState) == .submitted
-                            } catch {
-                                fail()
-                            }
+                            try await formControl.handleSubmit(onValid: { _, _ in })
+                            let formState = await formControl.formState
+                            expect(formState.submitCount) == 1
+                            expect(formState.isSubmitSuccessful) == false
+                            expect(formState.submissionState) == .submitted
                         }
                         
                         context("key \"b\" is invalid") {
@@ -1108,15 +1088,11 @@ final class FormHookTests: QuickSpec {
                             }
                             
                             it("formState is still invalid") {
-                                do {
-                                    try await formControl.handleSubmit(onValid: { _, _ in })
-                                    let formState = await formControl.formState
-                                    expect(formState.isValid) == false
-                                    expect(formState.errors[.a]) == ["Failed to validate a"]
-                                    expect(formState.errors[.b]) == ["Failed to validate b"]
-                                } catch {
-                                    fail()
-                                }
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == false
+                                expect(formState.errors[.a]) == ["Failed to validate a"]
+                                expect(formState.errors[.b]) == ["Failed to validate b"]
                             }
                         }
                     }
@@ -1144,17 +1120,13 @@ final class FormHookTests: QuickSpec {
                         }
                         
                         it("formState is invalid") {
-                            do {
-                                try await formControl.handleSubmit(onValid: { _, _ in
-                                    throw NSError(domain: "", code: 999)
-                                })
-                                let formState = await formControl.formState
-                                expect(formState.isValid) == false
-                                expect(formState.errors[.a]) == ["Failed to validate a"]
-                                expect(formState.errors[.b]).to(beEmpty())
-                            } catch {
-                                fail()
-                            }
+                            try await formControl.handleSubmit(onValid: { _, _ in
+                                throw NSError(domain: "", code: 999)
+                            })
+                            let formState = await formControl.formState
+                            expect(formState.isValid) == false
+                            expect(formState.errors[.a]) == ["Failed to validate a"]
+                            expect(formState.errors[.b]).to(beEmpty())
                         }
                     }
                 }
@@ -1181,7 +1153,7 @@ final class FormHookTests: QuickSpec {
                                     fail()
                                 } catch {
                                     let formState = await formControl.formState
-                                    expect(formState.errors.errorFields.isEmpty) == true
+                                    expect(formState.errors.errorFields).to(beEmpty())
                                     
                                     try await Task.sleep(nanoseconds: 110_000_000)
                                     let fieldState = await formControl.getFieldState(name: .a)
@@ -1222,15 +1194,11 @@ final class FormHookTests: QuickSpec {
                     
                     context("invoke handleSubmit action") {
                         it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
-                            do {
-                                try await formControl.handleSubmit(onValid: { _, _ in })
-                                let formState = await formControl.formState
-                                expect(formState.submitCount) == 1
-                                expect(formState.isSubmitSuccessful) == true
-                                expect(formState.submissionState) == .submitted
-                            } catch {
-                                fail()
-                            }
+                            try await formControl.handleSubmit(onValid: { _, _ in })
+                            let formState = await formControl.formState
+                            expect(formState.submitCount) == 1
+                            expect(formState.isSubmitSuccessful) == true
+                            expect(formState.submissionState) == .submitted
                         }
                         
                         context("formState has been valid") {
@@ -1241,27 +1209,19 @@ final class FormHookTests: QuickSpec {
                                 }
                                 
                                 it("formState is still valid") {
-                                    do {
-                                        try await formControl.handleSubmit(onValid: { _, _ in })
-                                        let formState = await formControl.formState
-                                        expect(formState.isValid) == true
-                                        expect(formState.errors[.a]).to(beNil())
-                                        expect(formState.errors[.b]).to(beNil())
-                                    } catch {
-                                        fail()
-                                    }
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == true
+                                    expect(formState.errors[.a]).to(beNil())
+                                    expect(formState.errors[.b]).to(beNil())
                                 }
                                 
                                 it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
-                                    do {
-                                        try await formControl.handleSubmit(onValid: { _, _ in })
-                                        let formState = await formControl.formState
-                                        expect(formState.submitCount) == 1
-                                        expect(formState.isSubmitSuccessful) == true
-                                        expect(formState.submissionState) == .submitted
-                                    } catch {
-                                        fail()
-                                    }
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.submitCount) == 1
+                                    expect(formState.isSubmitSuccessful) == true
+                                    expect(formState.submissionState) == .submitted
                                 }
                                 
                                 context("key \"b\" is invalid") {
@@ -1271,15 +1231,11 @@ final class FormHookTests: QuickSpec {
                                     }
                                     
                                     it("formState is still valid") {
-                                        do {
-                                            try await formControl.handleSubmit(onValid: { _, _ in })
-                                            let formState = await formControl.formState
-                                            expect(formState.isValid) == true
-                                            expect(formState.errors[.a]).to(beNil())
-                                            expect(formState.errors[.b]).to(beNil())
-                                        } catch {
-                                            fail()
-                                        }
+                                        try await formControl.handleSubmit(onValid: { _, _ in })
+                                        let formState = await formControl.formState
+                                        expect(formState.isValid) == true
+                                        expect(formState.errors[.a]).to(beNil())
+                                        expect(formState.errors[.b]).to(beNil())
                                     }
                                 }
                             }
@@ -1303,27 +1259,19 @@ final class FormHookTests: QuickSpec {
                                 }
                                 
                                 it("formState is invalid") {
-                                    do {
-                                        try await formControl.handleSubmit(onValid: { _, _ in })
-                                        let formState = await formControl.formState
-                                        expect(formState.isValid) == false
-                                        expect(formState.errors[.a]) == ["Failed to validate a"]
-                                        expect(formState.errors[.b]).to(beNil())
-                                    } catch {
-                                        fail()
-                                    }
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.isValid) == false
+                                    expect(formState.errors[.a]) == ["Failed to validate a"]
+                                    expect(formState.errors[.b]).to(beNil())
                                 }
                                 
                                 it("submitCount is 1, isSubmitSuccessful is false, and submissionState is .submitted") {
-                                    do {
-                                        try await formControl.handleSubmit(onValid: { _, _ in })
-                                        let formState = await formControl.formState
-                                        expect(formState.submitCount) == 1
-                                        expect(formState.isSubmitSuccessful) == false
-                                        expect(formState.submissionState) == .submitted
-                                    } catch {
-                                        fail()
-                                    }
+                                    try await formControl.handleSubmit(onValid: { _, _ in })
+                                    let formState = await formControl.formState
+                                    expect(formState.submitCount) == 1
+                                    expect(formState.isSubmitSuccessful) == false
+                                    expect(formState.submissionState) == .submitted
                                 }
                                 
                                 context("key \"b\" is invalid") {
@@ -1333,15 +1281,11 @@ final class FormHookTests: QuickSpec {
                                     }
                                     
                                     it("formState is still invalid") {
-                                        do {
-                                            try await formControl.handleSubmit(onValid: { _, _ in })
-                                            let formState = await formControl.formState
-                                            expect(formState.isValid) == false
-                                            expect(formState.errors[.a]) == ["Failed to validate a"]
-                                            expect(formState.errors[.b]).to(beNil())
-                                        } catch {
-                                            fail()
-                                        }
+                                        try await formControl.handleSubmit(onValid: { _, _ in })
+                                        let formState = await formControl.formState
+                                        expect(formState.isValid) == false
+                                        expect(formState.errors[.a]) == ["Failed to validate a"]
+                                        expect(formState.errors[.b]).to(beNil())
                                     }
                                 }
                             }
@@ -1393,19 +1337,15 @@ final class FormHookTests: QuickSpec {
                             }
                             
                             it("formState is still valid") { // cause state of field a isn't getting any error
-                                do {
-                                    try await formControl.handleSubmit { _, _ in
-                                        
-                                    } onInvalid: { _, _ in
-                                        throw NSError(domain: "", code: 999)
-                                    }
-                                    let formState = await formControl.formState
-                                    expect(formState.isValid) == true
-                                    expect(formState.errors[.a]).to(beNil())
-                                    expect(formState.errors[.b]).to(beNil())
-                                } catch {
-                                    fail()
+                                try await formControl.handleSubmit { _, _ in
+                                    
+                                } onInvalid: { _, _ in
+                                    throw NSError(domain: "", code: 999)
                                 }
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == true
+                                expect(formState.errors[.a]).to(beNil())
+                                expect(formState.errors[.b]).to(beNil())
                             }
                         }
                     }
@@ -1424,27 +1364,19 @@ final class FormHookTests: QuickSpec {
                             }
                             
                             it("formState is still valid") {
-                                do {
-                                    try await formControl.handleSubmit(onValid: { _, _ in })
-                                    let formState = await formControl.formState
-                                    expect(formState.isValid) == true
-                                    expect(formState.errors[.a]).to(beNil())
-                                    expect(formState.errors[.b]).to(beNil())
-                                } catch {
-                                    fail()
-                                }
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == true
+                                expect(formState.errors[.a]).to(beNil())
+                                expect(formState.errors[.b]).to(beNil())
                             }
                             
                             it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
-                                do {
-                                    try await formControl.handleSubmit(onValid: { _, _ in })
-                                    let formState = await formControl.formState
-                                    expect(formState.submitCount) == 1
-                                    expect(formState.isSubmitSuccessful) == true
-                                    expect(formState.submissionState) == .submitted
-                                } catch {
-                                    fail()
-                                }
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == true
+                                expect(formState.submissionState) == .submitted
                             }
                         }
                     }
@@ -1457,35 +1389,27 @@ final class FormHookTests: QuickSpec {
                             }
                             
                             it("formState is invalid") {
-                                do {
-                                    try await formControl.handleSubmit { _, _ in
-                                        
-                                    } onInvalid: { _, _ in
-                                        throw NSError(domain: "", code: 999)
-                                    }
-                                    let formState = await formControl.formState
-                                    expect(formState.isValid) == true
-                                    expect(formState.errors[.a]).to(beNil())
-                                    expect(formState.errors[.b]).to(beNil())
-                                } catch {
-                                    fail()
+                                try await formControl.handleSubmit { _, _ in
+                                    
+                                } onInvalid: { _, _ in
+                                    throw NSError(domain: "", code: 999)
                                 }
+                                let formState = await formControl.formState
+                                expect(formState.isValid) == true
+                                expect(formState.errors[.a]).to(beNil())
+                                expect(formState.errors[.b]).to(beNil())
                             }
                             
                             it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
-                                do {
-                                    try await formControl.handleSubmit { _, _ in
-                                        
-                                    } onInvalid: { _, _ in
-                                        throw NSError(domain: "", code: 999)
-                                    }
-                                    let formState = await formControl.formState
-                                    expect(formState.submitCount) == 1
-                                    expect(formState.isSubmitSuccessful) == true
-                                    expect(formState.submissionState) == .submitted
-                                } catch {
-                                    fail()
+                                try await formControl.handleSubmit { _, _ in
+                                    
+                                } onInvalid: { _, _ in
+                                    throw NSError(domain: "", code: 999)
                                 }
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == true
+                                expect(formState.submissionState) == .submitted
                             }
                         }
                     }
@@ -1511,7 +1435,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -1536,13 +1460,12 @@ final class FormHookTests: QuickSpec {
                 context("delayError equals 100ms") {
                     beforeEach {
                         formControl.options.delayErrorInNanoseconds = 100_000_000
+                        await formControl.trigger()
                     }
                     
-                    it("formState accepts errors after 100ms") {
-                        await formControl.trigger()
-                        
-                        let formState = await formControl.formState
-                        expect(formState.errors.errorFields.isEmpty) == true
+                    it("formState accepts errors after 100ms") { @MainActor in
+                        let formState = formControl.formState
+                        expect(formState.errors.errorFields).to(beEmpty())
                         
                         try await Task.sleep(nanoseconds: 110_000_000)
                         let afieldState = await formControl.getFieldState(name: .a)
@@ -1589,7 +1512,7 @@ final class FormHookTests: QuickSpec {
                         await formControl.trigger()
                         
                         let formState = await formControl.formState
-                        expect(formState.errors.errorFields.isEmpty) == true
+                        expect(formState.errors.errorFields).to(beEmpty())
                         
                         try await Task.sleep(nanoseconds: 110_000_000)
                         let afieldState = await formControl.getFieldState(name: .a)
@@ -1660,7 +1583,6 @@ final class FormHookTests: QuickSpec {
                         aValidator.result = false
                         aValidator.messages = ["Failed to validate a"]
                         aBinder.wrappedValue = "a"
-                        await formControl.syncFormState()
                     }
                     
                     it("field \"a\" is triggered, and is invalid") {
@@ -1746,7 +1668,7 @@ final class FormHookTests: QuickSpec {
                     resolver: resolverProxy.resolver(values:context:fieldNames:),
                     context: nil,
                     shouldUnregister: true,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -1878,7 +1800,7 @@ final class FormHookTests: QuickSpec {
                     resolver: nil,
                     context: nil,
                     shouldUnregister: false,
-                    shouldFocusError: true,
+                    shouldFocusError: false,
                     delayErrorInNanoseconds: 0,
                     onFocusField: { _ in }
                 )
@@ -1931,6 +1853,136 @@ final class FormHookTests: QuickSpec {
                     it("key \"a\" is still dirty") {
                         let fieldState = formControl.getFieldState(name: .a)
                         expect(fieldState.isDirty) == true
+                    }
+                }
+            }
+        }
+    }
+    
+    func focusSpecs() {
+        describe("FocusedFieldOption") {
+            var options: FormOption<TestFieldName>.FocusedFieldOption!
+            
+            context("initialise with a closure") {
+                var focusField: TestFieldName?
+                
+                beforeEach {
+                    options = .init { focusField = $0 }
+                }
+                
+                it("focusField equals nil") {
+                    expect(focusField).to(beNil())
+                }
+                
+                context("then focuses on field \"a\"") {
+                    beforeEach {
+                        await options.triggerFocus(on: .a)
+                    }
+                    
+                    it("focusField equals a") { @MainActor in
+                        expect(focusField) == .a
+                    }
+                    
+                    context("then focuses on field \"b\"") {
+                        beforeEach {
+                            await options.triggerFocus(on: .b)
+                        }
+                        
+                        it("focusField equals b") { @MainActor in
+                            expect(focusField) == .b
+                        }
+                    }
+                }
+            }
+        }
+        
+        describe("Form Control registered invalid \"a\" and valid \"b\"") {
+            var formControl: FormControl<TestFieldName>!
+            var aValidator: MockValidator<String, Bool>!
+            var bValidator: MockValidator<String, Bool>!
+            let aDefaultValue = "%^$#"
+            let bDefaultValue = "%^$#*("
+            var focusField: TestFieldName?
+            var aBinder: FieldRegistration<String>!
+            
+            beforeEach {
+                focusField = nil
+                var formState: FormState<TestFieldName> = .init()
+                let options = FormOption<TestFieldName>(
+                    mode: .onSubmit,
+                    reValidateMode: .onChange,
+                    resolver: nil,
+                    context: nil,
+                    shouldUnregister: true,
+                    shouldFocusError: true,
+                    delayErrorInNanoseconds: 0,
+                    onFocusField: {
+                        focusField = $0
+                    }
+                )
+                formControl = .init(options: options, formState: .init(
+                    get: { formState },
+                    set: {
+                        formState = $0
+                        focusField = nil // Simulate SwiftUI behavior
+                    }
+                ))
+                
+                aValidator = MockValidator<String, Bool>(result: false)
+                aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
+                
+                bValidator = MockValidator<String, Bool>(result: true)
+                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("submits the form values") {
+                beforeEach {
+                    try? await formControl.handleSubmit(onValid: { _, _ in })
+                }
+                
+                it("focusField equals a") { @MainActor in
+                    expect(focusField) == .a
+                }
+                
+                context("\"a\" becomes valid then submits the form values") {
+                    beforeEach {
+                        aValidator.result = true
+                        try? await formControl.handleSubmit(onValid: { _, _ in })
+                    }
+                    
+                    it("focusField is nil") { @MainActor in
+                        expect(focusField).to(beNil())
+                    }
+                }
+            }
+            
+            context("field \"a\" has been already invalid") {
+                beforeEach {
+                    formControl.instantFormState.errors.setMessages(name: .a, messages: ["Failed to validate a"], isValid: false)
+                }
+                
+                context("field \"a\" changes its value") {
+                    beforeEach {
+                        aBinder.wrappedValue = "a"
+                    }
+                    
+                    it("focusField equals a") {
+                        try await Task.sleep(nanoseconds: 2_000_000)
+                        
+                        expect(focusField) == .a
+                    }
+                }
+                
+                context("field \"a\" is valid and changes its value") {
+                    beforeEach {
+                        aValidator.result = true
+                        aBinder.wrappedValue = "a"
+                    }
+                    
+                    it("focusField equals a") {
+                        try await Task.sleep(nanoseconds: 2_000_000)
+                        
+                        expect(focusField) == .a
                     }
                 }
             }
