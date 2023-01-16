@@ -1190,6 +1190,48 @@ final class FormHookTests: QuickSpec {
                 context("with reValidateMode .onSubmit") {
                     beforeEach {
                         formControl.options.reValidateMode = .onSubmit
+                        formControl.options.resolver = nil
+                    }
+                    
+                    context("with a customised validation, which returns true, passed") {
+                        beforeEach {
+                            formControl.options.resolver = ResolverProxy<TestFieldName>(value: [
+                                .a: aDefaultValue,
+                                .b: bDefaultValue
+                            ]).resolver(values:context:fieldNames:)
+                        }
+                        
+                        context("invoke handleSubmit action") {
+                            it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == true
+                                expect(formState.submissionState) == .submitted
+                            }
+                        }
+                    }
+                    
+                    context("with a customised validation, which returns false, passed") {
+                        beforeEach {
+                            formControl.options.resolver = ResolverProxy<TestFieldName>(error: .init(
+                                errorFields: Set([.a, .b]),
+                                messages: [
+                                    .a: ["Failed to validate a"],
+                                    .b: ["Failed to validate b"]
+                                ]
+                            )).resolver(values:context:fieldNames:)
+                        }
+                        
+                        context("invoke handleSubmit action") {
+                            it("submitCount is 1, isSubmitSuccessful is true, and submissionState is .submitted") {
+                                try await formControl.handleSubmit(onValid: { _, _ in })
+                                let formState = await formControl.formState
+                                expect(formState.submitCount) == 1
+                                expect(formState.isSubmitSuccessful) == false
+                                expect(formState.submissionState) == .submitted
+                            }
+                        }
                     }
                     
                     context("invoke handleSubmit action") {
@@ -1904,6 +1946,7 @@ final class FormHookTests: QuickSpec {
             let bDefaultValue = "%^$#*("
             var focusField: TestFieldName?
             var aBinder: FieldRegistration<String>!
+            var bBinder: FieldRegistration<String>!
             
             beforeEach {
                 focusField = nil
@@ -1932,7 +1975,25 @@ final class FormHookTests: QuickSpec {
                 aBinder = formControl.register(name: .a, options: .init(rules: aValidator!, defaultValue: aDefaultValue))
                 
                 bValidator = MockValidator<String, Bool>(result: true)
-                _ = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+                bBinder = formControl.register(name: .b, options: .init(rules: bValidator!, defaultValue: bDefaultValue))
+            }
+            
+            context("both fields are invalid and re-register all test fields with unnatural order") {
+                beforeEach {
+                    bValidator.result = false
+                    aBinder = formControl.register(name: .a, options: .init(fieldOrdinal: 1, rules: aValidator!, defaultValue: aDefaultValue))
+                    _ = formControl.register(name: .b, options: .init(fieldOrdinal: 0, rules: bValidator!, defaultValue: bDefaultValue))
+                }
+                
+                context("submits the form values") {
+                    beforeEach {
+                        try? await formControl.handleSubmit(onValid: { _, _ in })
+                    }
+                    
+                    it("focusField equals b") { @MainActor in
+                        expect(focusField) == .b
+                    }
+                }
             }
             
             context("submits the form values") {
@@ -1970,6 +2031,26 @@ final class FormHookTests: QuickSpec {
                         try await Task.sleep(nanoseconds: 2_000_000)
                         
                         expect(focusField) == .a
+                    }
+                    
+                    context("field \"b\" changes its value") {
+                        beforeEach {
+                            bBinder.wrappedValue = "b"
+                        }
+                        
+                        context("then field \"a\" changes its value") {
+                            beforeEach {
+                                try? await Task.sleep(nanoseconds: 2_000_000)
+                                
+                                aBinder.wrappedValue = "a"
+                            }
+                            
+                            it("focusField equals a") {
+                                try await Task.sleep(nanoseconds: 2_000_000)
+                                
+                                expect(focusField) == .a
+                            }
+                        }
                     }
                 }
                 

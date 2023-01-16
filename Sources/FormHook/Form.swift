@@ -16,7 +16,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
     private var fields: [FieldName: FieldProtocol]
 
     private var _currentFocusedField: FieldName?
-    
+
     @MainActor
     private var currentFocusedField: FieldName? {
         get {
