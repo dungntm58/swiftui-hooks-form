@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import Hooks
 
+/// A control that holds form information
 public class FormControl<FieldName> where FieldName: Hashable {
     var options: FormOption<FieldName>
 
@@ -44,6 +45,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         self.instantFormState = formState.wrappedValue
     }
 
+    /// Register an input or select element and apply validation rules to SwiftUI Hook Form
+    /// - Parameters: 
+    ///     - name: The name of the field.
+    ///     - options: The options for the field, such as its default value and field ordinal.
+    /// - Returns: A `FieldRegistration` object containing the value of the field.
     public func register<Value>(name: FieldName, options: RegisterOption<Value>) -> FieldRegistration<Value> {
         self.instantFormState.defaultValues[name] = options.defaultValue
         let field: Field<Value>
@@ -69,6 +75,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
         currentErrorNotifyTask = nil
     }
 
+    /// Unregister a single input or an array of inputs
+    /// - Parameters:
+    ///   - names: The name(s) of the input(s) to unregister.
+    ///   - options: Options for unregistering the input(s).
     public func unregister(names: [FieldName], options: UnregisterOption = []) async {
         if self.options.shouldUnregister {
             names.forEach { fields[$0] = nil }
@@ -96,10 +106,18 @@ public class FormControl<FieldName> where FieldName: Hashable {
         names.forEach { instantFormState.errors.removeValidityOnly(name: $0) }
     }
 
+    /// Unregister a single input or an array of inputs
+    /// - Parameters:
+    ///   - name: The name(s) of the input(s) to unregister.
+    ///   - options: Options for unregistering the field name.
     public func unregister(name: FieldName..., options: UnregisterOption = []) async {
         await unregister(names: name, options: options)
     }
 
+    /// Handles the submission of a form.
+    /// - Parameters:
+    ///     - onValid: A closure that is called when the form is valid. It takes two arguments: the form value and any errors that were encountered.
+    ///     - onInvalid: An optional closure that is called when the form is invalid. It takes two arguments: the form value and any errors that were encountered. If not provided, an error will be thrown instead.
     public func handleSubmit(
         @_implicitSelfCapture onValid: @escaping (FormValue<FieldName>, FormError<FieldName>) async throws -> Void,
         @_implicitSelfCapture onInvalid: ((FormValue<FieldName>, FormError<FieldName>) async throws -> Void)? = nil
@@ -206,6 +224,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
         }
     }
 
+    /// Reset the entire form state, fields reference, and subscriptions. There are optional arguments and will allow partial form state reset.
+    /// - Parameters: 
+    ///   - defaultValues: A `FormValue` containing the default values for each field.
+    ///   - options: An optional array of `ResetOption`s which will allow partial form state reset.
     public func reset(defaultValues: FormValue<FieldName>, options: ResetOption = []) async {
         for (name, defaultValue) in defaultValues {
             if let defaultValue = Optional.some(defaultValue).flattened() {
@@ -243,6 +265,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         return await syncFormState()
     }
 
+    /// Resets an individual field state.
+    /// - Parameters:
+    ///   - name: The name of the field to reset.
+    ///   - defaultValue: The default value of the field. Must not be nil.
+    ///   - options: Options for resetting the field.
     public func reset(name: FieldName, defaultValue: Any, options: SingleResetOption = []) async {
         guard let defaultValue = Optional.some(defaultValue).flattened() else {
             assertionFailure("defaultValue must not be nil")
@@ -252,6 +279,10 @@ public class FormControl<FieldName> where FieldName: Hashable {
         await reset(name: name, options: options)
     }
 
+    /// Resets an individual field state.
+    /// - Parameters:
+    ///   - name: The name of the field to reset.
+    ///   - options: Options for resetting the field.
     public func reset(name: FieldName, options: SingleResetOption = []) async {
         instantFormState.formValues[name] = instantFormState.defaultValues[name]
         if !options.contains(.keepDirty) {
@@ -264,6 +295,9 @@ public class FormControl<FieldName> where FieldName: Hashable {
         return await syncFormState()
     }
 
+    /// This function can manually clear errors in the form.
+    /// - Parameters:
+    ///   - names: An array of `FieldName`s to remove errors from.
     public func clearErrors(names: [FieldName]) async {
         names.forEach { name in
             instantFormState.errors.remove(name: name)
@@ -271,10 +305,19 @@ public class FormControl<FieldName> where FieldName: Hashable {
         await syncFormState()
     }
 
+    /// This function can manually clear errors in the form.
+    /// - Parameters:
+    ///   - name: A variadic list of `FieldName`s to remove errors from.
     public func clearErrors(name: FieldName...) async {
         await clearErrors(names: name)
     }
 
+    /// Sets the value of a registered field and updates the form state.
+    /// - Parameters:
+    ///   - name: The name of the field to set.
+    ///   - value: The value to set for the field.
+    ///   - options: An array of `SetValueOption`s that determine how the form state should be updated.
+    /// - Returns: An asynchronous task that returns when the form state has been updated.
     public func setValue(name: FieldName, value: Any, options: SetValueOption = []) async {
         instantFormState.formValues[name] = value
         if options.contains(.shouldDirty) || !areEqual(first: value, second: instantFormState.defaultValues[name]) {
@@ -286,14 +329,25 @@ public class FormControl<FieldName> where FieldName: Hashable {
         await trigger(name: name)
     }
 
+    /// Return individual field state
+    /// - Parameter name: The name of the field to get the state of. 
+    /// - Returns: A `FieldState` object containing information about a single field in a form state object.
     public func getFieldState(name: FieldName) -> FieldState {
         instantFormState.getFieldState(name: name)
     }
 
+    /// Return individual field state asynchronously
+    /// - Parameter name: The name of the field to get the state of. 
+    /// - Returns: A `FieldState` object containing information about a single field in a form state object.
     public func getFieldState(name: FieldName) async -> FieldState {
         await formState.getFieldState(name: name)
     }
 
+    /// Manually triggers form or input validation. This method is also useful when you have dependant validation (input validation depends on another input's value).
+    ///  - Parameters: 
+    ///     - names: An array of `FieldName`s to be validated. 
+    ///     - shouldFocus: A boolean indicating whether the field should be focused after validation. Defaults to `false`. 
+    ///  - Returns: A boolean indicating whether all validations passed successfully or not.
     @discardableResult
     public func trigger(names: [FieldName], shouldFocus: Bool = false) async -> Bool {
         let validationNames = names.isEmpty ? fields.map { $0.key } : names
@@ -362,6 +416,11 @@ public class FormControl<FieldName> where FieldName: Hashable {
         return isValid
     }
 
+    /// Manually triggers form or input validation. This method is also useful when you have dependant validation (input validation depends on another input's value).
+    ///  - Parameters: 
+    ///     - names: variadic list of `FieldName`s to be validated. 
+    ///     - shouldFocus: A boolean indicating whether the field should be focused after validation. Defaults to `false`. 
+    ///  - Returns: A boolean indicating whether all validations passed successfully or not.
     @discardableResult
     public func trigger(name: FieldName..., shouldFocus: Bool = false) async -> Bool {
         await trigger(names: name, shouldFocus: shouldFocus)
@@ -542,19 +601,32 @@ private extension FormControl {
     }
 }
 
+/// A convenient view that wraps a call of `useForm`.
 public struct ContextualForm<Content, FieldName>: View where Content: View, FieldName: Hashable {
     let formOptions: FormOption<FieldName>
     let contentBuilder: (FormControl<FieldName>) -> Content
 
-    public init(mode: Mode = .onSubmit,
-                reValidateMode: ReValidateMode = .onChange,
-                resolver: Resolver<FieldName>? = nil,
-                context: Any? = nil,
-                shouldUnregister: Bool = true,
-                shouldFocusError: Bool = true,
-                delayErrorInNanoseconds: UInt64 = 0,
-                @_implicitSelfCapture onFocusField: @escaping (FieldName) -> Void,
-                @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
+    /// Initialize a `ContextualForm`
+    /// - Parameters:
+    ///   - mode: The mode in which the form will be validated. Defaults to `.onSubmit`.
+    ///   - reValidateMode: The mode in which the form will be re-validated. Defaults to `.onChange`.
+    ///   - resolver: A resolver used to resolve validation rules for fields. Defaults to `nil`.
+    ///   - context: An optional context that can be used when resolving validation rules for fields. Defaults to `nil`.
+    ///   - shouldUnregister: A boolean value that indicates whether the form should unregister its fields when it is deallocated. Defaults to `true`.
+    ///   - shouldFocusError: A boolean value that indicates whether the form should focus on an error field when it is invalidated. Defaults to `true`.
+    ///   - delayErrorInNanoseconds: The amount of time (in nanoseconds) that the form will wait before focusing on an error field when it is invalidated. Defaults to 0 nanoseconds (no delay).
+    ///   - onFocusField: An action performed when a field is focused on by the user or programmatically by the form.
+    ///   - contentBuilder: A closure used for building content for the contextual form view, using a FormControl<FieldName> instance as a parameter.
+    public init(
+        mode: Mode = .onSubmit,
+        reValidateMode: ReValidateMode = .onChange,
+        resolver: Resolver<FieldName>? = nil,
+        context: Any? = nil,
+        shouldUnregister: Bool = true,
+        shouldFocusError: Bool = true,
+        delayErrorInNanoseconds: UInt64 = 0,
+        @_implicitSelfCapture onFocusField: @escaping (FieldName) -> Void,
+        @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
     ) {
         self.formOptions = .init(
             mode: mode,
@@ -569,16 +641,28 @@ public struct ContextualForm<Content, FieldName>: View where Content: View, Fiel
         self.contentBuilder = content
     }
 
+    /// Initialize a `ContextualForm`
+    /// - Parameters:
+    ///   - mode: The mode in which the form will be validated. Defaults to `.onSubmit`.
+    ///   - reValidateMode: The mode in which the form will be re-validated. Defaults to `.onChange`.
+    ///   - resolver: A resolver used to resolve validation rules for fields. Defaults to `nil`.
+    ///   - context: An optional context that can be used when resolving validation rules for fields. Defaults to `nil`.
+    ///   - shouldUnregister: A boolean value that indicates whether the form should unregister its fields when it is deallocated. Defaults to `true`.
+    ///   - shouldFocusError: A boolean value that indicates whether the form should focus on an error field when it is invalidated. Defaults to `true`.
+    ///   - delayErrorInNanoseconds: The amount of time (in nanoseconds) that the form will wait before focusing on an error field when it is invalidated. Defaults to 0 nanoseconds (no delay).
+    ///   - focusedFieldBinder: A binding used to bind a FocusState<FieldName?> instance, which holds information about which field is currently focused on by the user or programmatically by the form. 
+    ///   - contentBuilder: A closure used for building content for the contextual form view, using a FormControl<FieldName> instance as a parameter.
     @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
-    public init(mode: Mode = .onSubmit,
-                reValidateMode: ReValidateMode = .onChange,
-                resolver: Resolver<FieldName>? = nil,
-                context: Any? = nil,
-                shouldUnregister: Bool = true,
-                shouldFocusError: Bool = true,
-                delayErrorInNanoseconds: UInt64 = 0,
-                focusedFieldBinder: FocusState<FieldName?>.Binding,
-                @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
+    public init(
+        mode: Mode = .onSubmit,
+        reValidateMode: ReValidateMode = .onChange,
+        resolver: Resolver<FieldName>? = nil,
+        context: Any? = nil,
+        shouldUnregister: Bool = true,
+        shouldFocusError: Bool = true,
+        delayErrorInNanoseconds: UInt64 = 0,
+        focusedFieldBinder: FocusState<FieldName?>.Binding,
+        @ViewBuilder content: @escaping (FormControl<FieldName>) -> Content
     ) {
         self.formOptions = .init(
             mode: mode,

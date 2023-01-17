@@ -9,6 +9,16 @@ import Foundation
 import Hooks
 import SwiftUI
 
+/// Use the `useForm` hook to manage forms with ease.
+/// - Parameters:
+///   - mode: The mode of the form. Defaults to `.onSubmit`.
+///   - reValidateMode: The re-validation mode of the form. Defaults to `.onChange`.
+///   - resolver: A custom resolver for the form. Defaults to `nil`.
+///   - context: A custom context passed to the resolver when resolving fields values and errors. Defaults to `nil`.
+///   - shouldUnregister: Whether or not the form should unregister inputs when unmounted. Defaults to `true`.
+///   - shouldFocusError: Whether or not the form should focus on the first field with an error when submitting. Defaults to `true`.
+///   - delayErrorInNanoseconds: Delay in nanoseconds before displaying any field error after submitting. Defaults to `0`.
+///   - onFocusField: Callback called when a field is focused on by the user, passing a field name as parameter.
 public func useForm<FieldName>(
     mode: Mode = .onSubmit,
     reValidateMode: ReValidateMode = .onChange,
@@ -33,6 +43,17 @@ public func useForm<FieldName>(
     )
 }
 
+/// Use the `useForm` hook to manage forms with ease.
+/// - Parameters:
+///   - mode: The mode of the form. Defaults to `.onSubmit`.
+///   - reValidateMode: The re-validation mode of the form. Defaults to `.onChange`.
+///   - resolver: A custom resolver for the form. Defaults to `nil`.
+///   - context: A custom context for the form. Defaults to `nil`.
+///   - shouldUnregister: Whether or not to unregister fields when they are removed from the form. Defaults to `true`.
+///   - shouldFocusError: Whether or not to focus on errors when they occur. Defaults to `true`.
+///   - delayErrorInNanoseconds: How long in nanoseconds to delay errors by. Defaults to 0.
+///   - focusedStateBinder: A binding for focused state of a field in the form.  Defaults to nil. 
+/// - Returns: A new instance of a `FormControl` with the given options.
 @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
 public func useForm<FieldName>(
     mode: Mode = .onSubmit,
@@ -58,6 +79,10 @@ public func useForm<FieldName>(
     )
 }
 
+/// Use the `useForm` hook to manage forms with ease.
+/// - Parameters:
+///   - options: The `FormOption`s to be used in the form.
+/// - Returns: A `FormControl` object with the given `FormOption`s.
 public func useForm<FieldName>(_ options: FormOption<FieldName>) -> FormControl<FieldName> where FieldName: Hashable {
     let state = useState(FormState<FieldName>())
     let formRef = useRef(FormControl<FieldName>(options: options, formState: state))
@@ -65,6 +90,7 @@ public func useForm<FieldName>(_ options: FormOption<FieldName>) -> FormControl<
     return formRef.current
 }
 
+/// A generic struct that allows for the configuration of a form.
 public struct FormOption<FieldName> where FieldName: Hashable {
     var mode: Mode
     var reValidateMode: ReValidateMode
@@ -75,7 +101,17 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     var delayErrorInNanoseconds: UInt64
     let focusedFieldOption: FocusedFieldOption
 
-    init(mode: Mode,
+    /// Initialize a `FormOption`
+    /// - Parameters:
+    ///   - mode: The mode of the form.
+    ///   - reValidateMode: The revalidate mode of the form.
+    ///   - resolver: A custom resolver to be used by the form.
+    ///   - context: Any additional context needed by the form.
+    ///   - shouldUnregister: Whether or not to unregister fields when they are removed from the form.
+    ///   - shouldFocusError: Whether or not to focus on an error when it occurs. 
+    ///   - delayErrorInNanoseconds: The delay in nanoseconds before an error is shown. 
+    ///   - onFocusField: A closure that will be called when a field is focused on.
+    public init(mode: Mode,
          reValidateMode: ReValidateMode,
          @_implicitSelfCapture resolver: Resolver<FieldName>?,
          context: Any?,
@@ -95,7 +131,7 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     }
 
     @available(macOS 12.0, iOS 15.0, tvOS 15.0, *)
-    init(mode: Mode,
+    public init(mode: Mode,
          reValidateMode: ReValidateMode,
          @_implicitSelfCapture resolver: Resolver<FieldName>?,
          context: Any?,
@@ -157,6 +193,9 @@ public struct FormOption<FieldName> where FieldName: Hashable {
     }
 }
 
+/// A set of options that can be used to configure a behavior.
+///
+/// The `Mode` type is an `OptionSet` that defines two options, `onSubmit` and `onChange`. It also provides a static property, `all`, which is the union of both options.
 public struct Mode: OptionSet {
     public var rawValue: Int
 
@@ -164,13 +203,24 @@ public struct Mode: OptionSet {
         self.rawValue = rawValue
     }
 
+    /// Indicates when a submission should occur.
     public static let onSubmit = Mode(rawValue: 1 << 0)
+
+    /// Indicates when a change should occur. 
     public static let onChange = Mode(rawValue: 1 << 1)
+
+    /// A combination of both options, `onSubmit` and `onChange`. 
     public static let all: Mode = [onChange, onSubmit]
 }
 
 public typealias ReValidateMode = Mode
 
+/// A typealias for a function that resolves a form.
+/// - Parameters:
+///   - values: The values of the form.
+///   - context: Any additional context needed to resolve the form.
+///   - fieldNames: An array of field names to be resolved.
+/// - Returns: A `Result` containing either the resolved values or an error. 
 public typealias Resolver<FieldName> = (
     _ values: ResolverValue<FieldName>,
     _ context: Any?,

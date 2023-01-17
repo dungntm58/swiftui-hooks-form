@@ -8,24 +8,48 @@
 import Foundation
 
 extension Validator {
+    /// Takes a list of validators and returns a compound validator that validates the value with all the validators and returns true if all the validators return true.
+    /// - Parameters: 
+    ///   - shouldGetAllMessages: A Boolean value indicating whether to return all messages from the validators or just the first one. Defaults to `false`.
+    ///   - validator: A variadic list of `Validator`s to be combined with this one. All must have the same `Value` type as this one.
+    /// - Returns: A compound `Validator` that combines this one with the given ones using an AND operator.
     public func and<V>(shouldGetAllMessages: Bool = false, validator: V...) -> some Validator<Value> where V: Validator, V.Value == Value {
         CompoundValidator<Value>(operator: .and, shouldGetAllMessages: shouldGetAllMessages, validator: [eraseToAnyValidator()] + validator.map { $0.eraseToAnyValidator() })
     }
 
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+    // Takes a list of validators and returns a compound validator that validates the value with all the validators and returns true if all the validators return true.
+    /// - Parameters: 
+    ///   - shouldGetAllMessages: A Boolean value indicating whether to return all messages from the validators or just the first one. Defaults to `false`.
+    ///   - validator: A variadic list of `Validator`s to be combined with this one.
+    /// - Returns: A compound `Validator` that combines this one with the given ones using an AND operator.
     public func and(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator<Value> {
         CompoundValidator<Value>(operator: .and, shouldGetAllMessages: shouldGetAllMessages, validator: ([self] + validator).map { $0.eraseToAnyValidator() })
     }
 
+    /// Takes a list of validators and returns a compound validator that validates the value with all the validators and returns true if one of the validators return true.
+    /// - Parameters: 
+    ///   - shouldGetAllMessages: A Boolean value indicating whether to return all messages from the validators or just the first one. Defaults to `false`.
+    ///   - validator: A variadic list of `Validator`s to be combined with this one. All must have the same `Value` type as this one.
+    /// - Returns: A compound `Validator` that combines this one with the given ones using an OR operator.
     public func or<V>(shouldGetAllMessages: Bool = false, validator: V...) -> some Validator<Value> where V: Validator, V.Value == Value {
         CompoundValidator<Value>(operator: .or, shouldGetAllMessages: shouldGetAllMessages, validator: [eraseToAnyValidator()] + validator.map { $0.eraseToAnyValidator() })
     }
 
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+    /// Takes a list of validators and returns a compound validator that validates the value with all the validators and returns true if one of the validators return true.
+    /// - Parameters: 
+    ///   - shouldGetAllMessages: A Boolean value indicating whether to return all messages from the validators or just the first one. Defaults to `false`.
+    ///   - validator: A variadic list of `Validator`s to be combined with this one.
+    /// - Returns: A compound `Validator` that combines this one with the given ones using an OR operator.
     public func or(shouldGetAllMessages: Bool = false, validator: any Validator<Value>...) -> some Validator<Value> {
         CompoundValidator<Value>(operator: .or, shouldGetAllMessages: shouldGetAllMessages, validator: ([self] + validator).map { $0.eraseToAnyValidator() })
     }
 
+    /// Creates a validator that asynchronously transforms the input using the given closure before validating it.
+    /// - Parameters: 
+    ///   - handler: A closure that asynchronously transforms the input.
+    /// - Returns: A validator that asynchronously transforms the input using the given closure before validating it.
     public func preMap<Input>(_ handler: @escaping (Input) async -> Value) -> some Validator<Input> {
         PreMapValidator<Input, Result, Value>(mapHandler: handler, validator: self)
     }

@@ -10,7 +10,9 @@ import Foundation
 public typealias ValidatorFunction<Value, Result> = (Value) async -> Result
 public typealias MessageGeneratorFunction<Result> = (Result) -> [String]
 
+/// `BoolConvertible` is a protocol used to represent a type that can be converted to a boolean value.
 public protocol BoolConvertible {
+    /// A boolean value representing the instance.
     var boolValue: Bool { get }
 }
 
@@ -18,16 +20,32 @@ extension Bool: BoolConvertible {
     public var boolValue: Bool { self }
 }
 
+/// A protocol that defines a type that provides messages.
+///
+/// The `MessageGenerator` protocol is used to define a type that provides messages. It requires conforming types to provide an array of strings.
 public protocol MessageGenerator {
+    /// An array of strings representing the messages provided by the conforming type.
     var messages: [String] { get }
 }
 
+/// A protocol used to validate a value of type `Value` and return a result of type `Result`.
 public protocol Validator<Value> {
+    /// The type of value to be validated.
     associatedtype Value
+
+    /// The type of result returned from the validation.
     associatedtype Result
 
+    /// Validates the given value asynchronously and returns a result.
+    /// - Parameter value: The value to be validated.
     func validate(_ value: Value) async -> Result
+
+    /// Checks whether the given result is valid or not.
+    /// - Parameter result: The result to be checked.
     func isValid(result: Result) -> Bool
+
+    /// Generates an array of messages based on the given result.
+    /// - Parameter result: The result used to generate messages.
     func generateMessage(result: Result) -> [String]
 }
 
@@ -58,11 +76,14 @@ extension Validator {
         return (isValid(result: result), generateMessage(result: result))
     }
 
+    /// Erases a `Validator` to an `AnyValidator`.
+    /// - Returns: An erased `AnyValidator` that wraps the receiver.
     public func eraseToAnyValidator() -> AnyValidator {
         .init(self)
     }
 }
 
+/// A type-erased validator that can be used to wrap any type of validator.
 public struct AnyValidator: Validator {
     fileprivate let box: AnyValidatorBox
 
@@ -74,10 +95,16 @@ public struct AnyValidator: Validator {
         }
     }
 
+    /// Initializes a new instance of `AnyValidator` with the specified validation function and message generator function. 
+    /// - Parameter validateFunction: The validation function to use for validation. 
+    /// - Parameter messageGenerator: The message generator function to use for generating messages. Defaults to an empty array.
     public init<Value, Result>(_ validateFunction: @escaping ValidatorFunction<Value, Result>, messageGenerator: @escaping MessageGeneratorFunction<Result> = { _ in [] }) where Result: BoolConvertible {
         self.box = HandlerBox(validateFunction, messageGenerator: messageGenerator)
     }
 
+    /// Initializes a new instance of `AnyValidatior` with the specified validation function and message generator function for boolean convertible results. 
+    /// - Parameter validateFunction: The validation function to use for validation. 
+    /// - Parameter messageGenerator: The message generator function to use for generating messages. Defaults to an empty array.
     public init<Value>(_ validateFunction: @escaping ValidatorFunction<Value, BoolConvertible>, messageGenerator: @escaping MessageGeneratorFunction<BoolConvertible> = { _ in [] }) {
         self.box = BoolConvertibleHandlerBox(validateFunction, messageGenerator: messageGenerator)
     }

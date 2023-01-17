@@ -1,0 +1,26 @@
+# https://github.com/actions/virtual-environments
+
+name: docs
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  docs:
+    name: Publish library documentation
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        xcode_version:
+          - latest-stable
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build docs
+        run: make docs
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs
