@@ -15,7 +15,7 @@ public func useForm<FieldName>(
     resolver: Resolver<FieldName>? = nil,
     context: Any? = nil,
     shouldUnregister: Bool = true,
-    shouldFocusError: Bool,
+    shouldFocusError: Bool = true,
     delayErrorInNanoseconds: UInt64 = 0,
     @_implicitSelfCapture onFocusField: @escaping (FieldName) -> Void
 ) -> FormControl<FieldName> where FieldName: Hashable {

@@ -22,6 +22,7 @@ public struct FieldOption<FieldName, Value> {
 public typealias ControllerRenderOption<FieldName, Value> = (field: FieldOption<FieldName, Value>, fieldState: FieldState, formState: FormState<FieldName>) where FieldName: Hashable
 
 public struct Controller<Content, FieldName, Value>: View where Content: View, FieldName: Hashable {
+    let form: FormControl<FieldName>?
     let name: FieldName
     let defaultValue: Value
     let rules: any Validator<Value>
@@ -31,6 +32,7 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
     let render: (ControllerRenderOption<FieldName, Value>) -> Content
 
     public init(
+        form: FormControl<FieldName>? = nil,
         name: FieldName,
         defaultValue: Value,
         rules: any Validator<Value> = NoopValidator(),
@@ -39,6 +41,7 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
         fieldOrdinal: Int? = nil,
         @ViewBuilder render: @escaping (ControllerRenderOption<FieldName, Value>) -> Content
     ) {
+        self.form = form
         self.name = name
         self.defaultValue = defaultValue
         self.rules = rules
@@ -50,7 +53,7 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
 
     public var body: some View {
         HookScope {
-            let renderOption = useController(name: name, defaultValue: defaultValue, rules: rules, shouldUnregister: shouldUnregister, unregisterOption: unregisterOption, fieldOrdinal: fieldOrdinal)
+            let renderOption = useController(form: form, name: name, defaultValue: defaultValue, rules: rules, shouldUnregister: shouldUnregister, unregisterOption: unregisterOption, fieldOrdinal: fieldOrdinal)
             render(renderOption)
         }
     }

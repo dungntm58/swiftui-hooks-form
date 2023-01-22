@@ -9,6 +9,7 @@ import Foundation
 import Hooks
 
 public func useController<FieldName, Value>(
+    form: FormControl<FieldName>? = nil,
     name: FieldName,
     defaultValue: Value,
     rules: any Validator<Value>,
@@ -16,7 +17,7 @@ public func useController<FieldName, Value>(
     unregisterOption: UnregisterOption = [],
     fieldOrdinal: Int? = nil
 ) -> ControllerRenderOption<FieldName, Value> where FieldName: Hashable {
-    let form = useContext(Context<FormControl<FieldName>>.self)
+    let form = form ?? useContext(Context<FormControl<FieldName>>.self)
     let registration = form.register(name: name, options: RegisterOption(fieldOrdinal: fieldOrdinal, rules: rules, defaultValue: defaultValue, shouldUnregister: shouldUnregister))
 
     let preservedChangedArray = [

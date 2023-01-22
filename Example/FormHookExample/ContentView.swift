@@ -35,8 +35,14 @@ struct ContentView: View {
     
     @FocusState var focusField: FormFieldName?
     
+//    func onFocusField(_ field: FormFieldName) {
+//        focusField = field
+//    }
+    
     @ViewBuilder
     var body: some View {
+//      Pass an onFocusField closure
+//      ContextualForm(onFocusField: onFocusField(_:)) {}
         ContextualForm(focusedFieldBinder: $focusField) { form in
             Form {
                 Section("Name") {
