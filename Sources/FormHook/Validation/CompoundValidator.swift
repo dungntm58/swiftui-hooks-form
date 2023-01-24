@@ -47,7 +47,7 @@ private struct CompoundValidator<Value>: Validator {
         self.shouldGetAllMessages = shouldGetAllMessages
     }
 
-    func validate(_ value: Value) async -> CompountValidationResult {
+    func validate(_ value: Value) async -> CompoundValidationResult {
         await withTaskGroup(of: ValidatorResultPair.self) { group in
             validators.forEach { validator in
                 group.addTask {
@@ -76,7 +76,7 @@ private struct CompoundValidator<Value>: Validator {
                         }
                     }
                 }
-                return CompountValidationResult(
+                return CompoundValidationResult(
                     messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
                     boolValue: isValid
                 )
@@ -87,13 +87,13 @@ private struct CompoundValidator<Value>: Validator {
                 for await resultPair in group {
                     results.append(resultPair)
                     guard resultPair.0.isValid(result: resultPair.1) else {
-                        return CompountValidationResult(
+                        return CompoundValidationResult(
                             messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
                             boolValue: false
                         )
                     }
                 }
-                return CompountValidationResult(
+                return CompoundValidationResult(
                     messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
                     boolValue: true
                 )
@@ -101,13 +101,13 @@ private struct CompoundValidator<Value>: Validator {
                 for await resultPair in group {
                     results.append(resultPair)
                     if resultPair.0.isValid(result: resultPair.1) {
-                        return CompountValidationResult(
+                        return CompoundValidationResult(
                             messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
                             boolValue: true
                         )
                     }
                 }
-                return CompountValidationResult(
+                return CompoundValidationResult(
                     messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
                     boolValue: false
                 )
@@ -118,7 +118,7 @@ private struct CompoundValidator<Value>: Validator {
 
 private typealias ValidatorResultPair = (AnyValidator, Any)
 
-private struct CompountValidationResult: BoolConvertible, MessageGenerator {
+private struct CompoundValidationResult: BoolConvertible, MessageGenerator {
     let messages: [String]
     let boolValue: Bool
 }
