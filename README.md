@@ -1,7 +1,7 @@
 <h1 align="center">SwiftUI Hooks Form</h1>
 <p align="center">A SwiftUI implementation of <a href="https://react-hook-form.com/get-started">React Hooks Form</a>.</p>
 <p align="center">Performant, flexible and extensible forms with easy-to-use validation.</p>
-<p align="center"><a href="https://dungntm58.github.io/swiftui-hooks-form/documentation/hooks">📔 API Reference</a></p>
+<p align="center"><a href="https://dungntm58.github.io/swiftui-hooks-form/documentation/formhook">📔 API Reference</a></p>
 <p align="center">
   <a href="https://github.com/dungntm58/swiftui-hooks-form/actions"><img alt="test" src="https://github.com/dungntm58/swiftui-hooks-form/workflows/test/badge.svg"></a>
   <a href="https://github.com/dungntm58/swiftui-hooks-form/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/dungntm58/swiftui-hooks-form.svg"/></a>
