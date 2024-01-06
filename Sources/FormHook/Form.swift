@@ -447,7 +447,7 @@ extension FormControl {
         let (isValid, errors) = await withTaskGroup(of: KeyValidationResult.self) { group in
             var errors = instantFormState.errors
             for (key, field) in fields {
-                group.addTask {
+                _ = group.addTaskUnlessCancelled {
                     let (isValid, messages) = await field.computeMessages()
                     return KeyValidationResult(key: key, isValid: isValid, messages: messages)
                 }
