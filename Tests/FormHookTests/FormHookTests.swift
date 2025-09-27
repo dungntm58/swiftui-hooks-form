@@ -909,6 +909,9 @@ struct FormControlTriggerTests {
             // Wait for delay to pass
             try? await Task.sleep(nanoseconds: 120_000_000) // 120ms
 
+            // Force sync the form state to ensure changes are reflected
+            await formControl.syncFormState()
+
             formState = formControl.instantFormState
             #expect(formState.errors.errorFields.contains(.a))
             #expect(formState.errors[.a] == ["Failed to validate a"])
