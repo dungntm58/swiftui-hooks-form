@@ -906,11 +906,10 @@ struct FormControlTriggerTests {
             var formState = formControl.instantFormState
             #expect(!formState.errors.errorFields.contains(.a))
 
-            // Wait for delay to pass
-            try? await Task.sleep(nanoseconds: 120_000_000) // 120ms
-
-            // Force sync the form state to ensure changes are reflected
-            await formControl.syncFormState()
+            // Wait for the delayed error task to complete
+            if let errorTask = formControl.currentErrorNotifyTask {
+                try? await errorTask.value
+            }
 
             formState = formControl.instantFormState
             #expect(formState.errors.errorFields.contains(.a))
