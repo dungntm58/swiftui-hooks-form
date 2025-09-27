@@ -1,5 +1,5 @@
 //
-//  Control.swift
+//  FormTypes.swift
 //  swiftui-hooks-form
 //
 //  Created by Robert on 07/11/2022.
@@ -7,6 +7,8 @@
 
 import Combine
 import SwiftUI
+
+// MARK: - Core Form Types
 
 /// A structure that stores data related to the registration of a field.
 public struct RegisterOption<Value> {
@@ -132,7 +134,11 @@ public struct SetValueOption: OptionSet {
     public static let all: SetValueOption = [shouldValidate, shouldDirty]
 }
 
+// MARK: - Field Registration Types
+
 public typealias FieldRegistration<Value> = Binding<Value>
+
+// MARK: - Form Value Types
 
 public typealias FormValue<FieldName> = [FieldName: Any] where FieldName: Hashable
 
@@ -143,6 +149,8 @@ extension FormValue {
         }
     }
 }
+
+// MARK: - Error Types
 
 /// A generic struct for representing form errors.
 /// - Note: `FieldName` must conform to the `Hashable` protocol.
@@ -201,6 +209,8 @@ public struct FormError<FieldName>: Equatable where FieldName: Hashable {
 }
 
 extension FormError: Error {}
+
+// MARK: - State Types
 
 /// Represents the state of a submission.
 public enum SubmissionState: Equatable {

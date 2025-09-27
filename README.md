@@ -73,8 +73,9 @@ And then, include "Hooks" as a dependency for your target:
 
 ### Documentation
 
-- [API Reference](https://dungntm58.github.io/swiftui-hooks-form/documentation/hooks)
-- [Example apps](Examples)
+- [API Reference](https://dungntm58.github.io/swiftui-hooks-form/documentation/formhook)
+- [Example apps](Example)
+- [Migration Guide](#migration-guide)
 
 ---
 
@@ -226,6 +227,185 @@ typealias ControllerRenderOption<FieldName, Value> = (field: FieldOption<FieldNa
 It wraps a call of `useController` inside the `hookBody`. Like `useController`, you guarantee `Controller` must be used in a `Context` scope.
 
 </details>
+
+---
+
+## Examples
+
+### Basic Form with Validation
+
+```swift
+import SwiftUI
+import FormHook
+
+enum FieldName: Hashable {
+    case email
+    case password
+}
+
+struct LoginForm: View {
+    var body: some View {
+        ContextualForm { form in
+            VStack(spacing: 16) {
+                Controller(
+                    name: FieldName.email,
+                    defaultValue: "",
+                    rules: CompositeValidator(
+                        validators: [
+                            RequiredValidator(),
+                            EmailValidator()
+                        ]
+                    )
+                ) { (field, fieldState, formState) in
+                    VStack(alignment: .leading) {
+                        TextField("Email", text: field.value)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                        if let error = fieldState.error?.first {
+                            Text(error)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                    }
+                }
+
+                Controller(
+                    name: FieldName.password,
+                    defaultValue: "",
+                    rules: CompositeValidator(
+                        validators: [
+                            RequiredValidator(),
+                            MinLengthValidator(length: 8)
+                        ]
+                    )
+                ) { (field, fieldState, formState) in
+                    VStack(alignment: .leading) {
+                        SecureField("Password", text: field.value)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                        if let error = fieldState.error?.first {
+                            Text(error)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                    }
+                }
+
+                Button("Login") {
+                    Task {
+                        try await form.handleSubmit { values, errors in
+                            print("Login successful:", values)
+                        }
+                    }
+                }
+                .disabled(!formState.isValid)
+            }
+            .padding()
+        }
+    }
+}
+```
+
+### Advanced Form with Custom Validation
+
+```swift
+import SwiftUI
+import FormHook
+
+struct RegistrationForm: View {
+    @FocusState private var focusedField: FieldName?
+
+    var body: some View {
+        ContextualForm(
+            focusedFieldBinder: $focusedField
+        ) { form in
+            VStack(spacing: 20) {
+                // Form fields here...
+
+                Button("Register") {
+                    Task {
+                        do {
+                            try await form.handleSubmit(
+                                onValid: { values, _ in
+                                    await registerUser(values)
+                                },
+                                onInvalid: { _, errors in
+                                    print("Validation errors:", errors)
+                                }
+                            )
+                        } catch {
+                            print("Registration failed:", error)
+                        }
+                    }
+                }
+                .disabled(formState.isSubmitting)
+            }
+        }
+    }
+
+    private func registerUser(_ values: FormValue<FieldName>) async {
+        // Registration logic
+    }
+}
+```
+
+---
+
+## Performance Guidelines
+
+- **Validation**: Use async validators for network-dependent validation
+- **Field Registration**: Prefer `useController` over direct field registration for better performance
+- **Focus Management**: Utilize the built-in focus management for better UX
+- **Error Handling**: Implement proper error boundaries for production apps
+
+---
+
+## Migration Guide
+
+### From Previous Versions
+
+#### Breaking Changes in v2.0
+
+1. **Module Rename**: The module is now called `FormHook` instead of `Hooks`
+2. **File Structure**: Internal files have been reorganized for better maintainability
+3. **Type Safety**: Improved type safety with better generic constraints
+
+#### Migration Steps
+
+1. Update your import statements:
+   ```swift
+   // Before
+   import Hooks
+
+   // After
+   import FormHook
+   ```
+
+2. API References remain the same - no changes needed to your form implementations
+
+3. If you were importing internal types, they may have moved:
+   - `Types.swift` → `FormTypes.swift`
+   - Form-related types are now in dedicated files
+
+#### New Features
+
+- **Enhanced Type Safety**: Better compile-time type checking
+- **Improved Validation**: Consolidated validation patterns for better performance
+- **Better Error Messages**: More descriptive error messages and debugging info
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Import Errors**: Make sure you're importing `FormHook` not `Hooks`
+2. **Field Focus**: Use `FocusState` binding for iOS 15+ focus management
+3. **Validation Performance**: Consider using `delayErrorInNanoseconds` for expensive validations
+
+#### Getting Help
+
+- Check the [API Reference](https://dungntm58.github.io/swiftui-hooks-form/documentation/formhook)
+- Look at [Example implementations](Example)
+- File issues on [GitHub](https://github.com/dungntm58/swiftui-hooks-form/issues)
 
 ---
 
