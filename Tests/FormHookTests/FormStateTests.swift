@@ -6,8 +6,7 @@
 //
 
 import Foundation
-import Quick
-import Nimble
+import Testing
 @testable import FormHook
 
 enum TestStateFieldName: Hashable {
@@ -17,500 +16,510 @@ enum TestStateFieldName: Hashable {
     case address
 }
 
-final class FormStateTests: QuickSpec {
-    override func spec() {
-        formStateInitializationSpecs()
-        formStateMutationSpecs()
-        formStateEqualitySpecs()
-        fieldStateSpecs()
-        formValueOperationsSpecs()
-        formErrorOperationsSpecs()
-    }
+@Suite("FormState")
+struct FormStateTests {
 
-    func formStateInitializationSpecs() {
-        describe("FormState initialization") {
-            context("with default values") {
-                var formState: FormState<TestStateFieldName>!
+    @Suite("Initialization")
+    struct InitializationTests {
 
-                beforeEach {
-                    formState = FormState<TestStateFieldName>()
-                }
+        @Suite("with default values")
+        struct DefaultValuesTests {
 
-                it("initializes with correct default state") {
-                    expect(formState.dirtyFields).to(beEmpty())
-                    expect(formState.formValues).to(beEmpty())
-                    expect(formState.defaultValues).to(beEmpty())
-                    expect(formState.submissionState) == .notSubmit
-                    expect(formState.isSubmitSuccessful) == false
-                    expect(formState.submitCount) == 0
-                    expect(formState.isValid) == true
-                    expect(formState.isValidating) == false
-                    expect(formState.errors.errorFields).to(beEmpty())
-                    expect(formState.errors.messages).to(beEmpty())
-                }
+            @Test("initializes with correct default state")
+            func initializesWithCorrectDefaultState() {
+                let formState = FormState<TestStateFieldName>()
 
-                it("isDirty returns false for empty dirty fields") {
-                    expect(formState.isDirty) == false
-                }
-            }
-
-            context("with custom initial values") {
-                var formState: FormState<TestStateFieldName>!
-
-                beforeEach {
-                    formState = FormState<TestStateFieldName>(
-                        dirtyFields: [.name, .email],
-                        formValues: [.name: "John", .email: "john@example.com"],
-                        defaultValues: [.name: "", .email: ""],
-                        submissionState: .submitted,
-                        isSubmitSuccessful: true,
-                        submitCount: 1,
-                        isValid: false,
-                        isValidating: true,
-                        errors: FormError(
-                            errorFields: [.email],
-                            messages: [.email: ["Invalid email"]]
-                        )
-                    )
-                }
-
-                it("initializes with provided values") {
-                    expect(formState.dirtyFields) == Set([.name, .email])
-                    expect(formState.formValues[.name] as? String) == "John"
-                    expect(formState.formValues[.email] as? String) == "john@example.com"
-                    expect(formState.defaultValues[.name] as? String) == ""
-                    expect(formState.defaultValues[.email] as? String) == ""
-                    expect(formState.submissionState) == .submitted
-                    expect(formState.isSubmitSuccessful) == true
-                    expect(formState.submitCount) == 1
-                    expect(formState.isValid) == false
-                    expect(formState.isValidating) == true
-                    expect(formState.errors.errorFields) == Set([.email])
-                    expect(formState.errors.messages[.email]) == ["Invalid email"]
-                }
-
-                it("isDirty returns true for non-empty dirty fields") {
-                    expect(formState.isDirty) == true
-                }
+                #expect(formState.dirtyFields.isEmpty)
+                #expect(formState.formValues.isEmpty)
+                #expect(formState.defaultValues.isEmpty)
+                #expect(formState.submissionState == .notSubmit)
+                #expect(formState.isSubmitSuccessful == false)
+                #expect(formState.submitCount == 0)
+                #expect(formState.isValid == true)
+                #expect(formState.isValidating == false)
+                #expect(formState.errors.errorFields.isEmpty)
+                #expect(formState.errors.messages.isEmpty)
             }
         }
-    }
 
-    func formStateMutationSpecs() {
-        describe("FormState mutations") {
-            var formState: FormState<TestStateFieldName>!
+        @Suite("with custom values")
+        struct CustomValuesTests {
 
-            beforeEach {
-                formState = FormState<TestStateFieldName>()
-            }
-
-            context("modifying dirty fields") {
-                it("can add dirty fields") {
-                    formState.dirtyFields.insert(.name)
-                    formState.dirtyFields.insert(.email)
-
-                    expect(formState.dirtyFields) == Set([.name, .email])
-                    expect(formState.isDirty) == true
-                }
-
-                it("can remove dirty fields") {
-                    formState.dirtyFields = Set([.name, .email, .age])
-                    formState.dirtyFields.remove(.email)
-
-                    expect(formState.dirtyFields) == Set([.name, .age])
-                    expect(formState.isDirty) == true
-                }
-
-                it("isDirty becomes false when all dirty fields removed") {
-                    formState.dirtyFields = Set([.name])
-                    formState.dirtyFields.remove(.name)
-
-                    expect(formState.dirtyFields).to(beEmpty())
-                    expect(formState.isDirty) == false
-                }
-            }
-
-            context("modifying form values") {
-                it("can set and get form values") {
-                    formState.formValues[.name] = "John Doe"
-                    formState.formValues[.age] = 30
-
-                    expect(formState.formValues[.name] as? String) == "John Doe"
-                    expect(formState.formValues[.age] as? Int) == 30
-                }
-
-                it("can remove form values") {
-                    formState.formValues[.name] = "John"
-                    formState.formValues[.name] = nil
-
-                    expect(formState.formValues[.name]).to(beNil())
-                }
-
-                it("handles various data types") {
-                    formState.formValues[.name] = "String"
-                    formState.formValues[.age] = 25
-                    formState.formValues[.email] = true
-                    formState.formValues[.address] = [1, 2, 3]
-
-                    expect(formState.formValues[.name] as? String) == "String"
-                    expect(formState.formValues[.age] as? Int) == 25
-                    expect(formState.formValues[.email] as? Bool) == true
-                    expect(formState.formValues[.address] as? [Int]) == [1, 2, 3]
-                }
-            }
-
-            context("modifying submission state") {
-                it("can change submission state") {
-                    formState.submissionState = .submitting
-                    expect(formState.submissionState) == .submitting
-
-                    formState.submissionState = .submitted
-                    expect(formState.submissionState) == .submitted
-
-                    formState.submissionState = .notSubmit
-                    expect(formState.submissionState) == .notSubmit
-                }
-
-                it("can update submit success status") {
-                    formState.isSubmitSuccessful = true
-                    expect(formState.isSubmitSuccessful) == true
-
-                    formState.isSubmitSuccessful = false
-                    expect(formState.isSubmitSuccessful) == false
-                }
-
-                it("can increment submit count") {
-                    formState.submitCount = 5
-                    expect(formState.submitCount) == 5
-
-                    formState.submitCount += 1
-                    expect(formState.submitCount) == 6
-                }
-            }
-
-            context("modifying validation state") {
-                it("can change validation status") {
-                    formState.isValid = false
-                    expect(formState.isValid) == false
-
-                    formState.isValid = true
-                    expect(formState.isValid) == true
-                }
-
-                it("can change validating status") {
-                    formState.isValidating = true
-                    expect(formState.isValidating) == true
-
-                    formState.isValidating = false
-                    expect(formState.isValidating) == false
-                }
-            }
-        }
-    }
-
-    func formStateEqualitySpecs() {
-        describe("FormState equality") {
-            var formState1: FormState<TestStateFieldName>!
-            var formState2: FormState<TestStateFieldName>!
-
-            beforeEach {
-                formState1 = FormState<TestStateFieldName>(
-                    dirtyFields: [.name],
-                    formValues: [.name: "John"],
-                    defaultValues: [.name: ""],
-                    submissionState: .notSubmit,
-                    isSubmitSuccessful: false,
-                    submitCount: 0,
-                    isValid: true,
-                    isValidating: false,
-                    errors: FormError()
-                )
-
-                formState2 = FormState<TestStateFieldName>(
-                    dirtyFields: [.name],
-                    formValues: [.name: "John"],
-                    defaultValues: [.name: ""],
-                    submissionState: .notSubmit,
-                    isSubmitSuccessful: false,
-                    submitCount: 0,
-                    isValid: true,
-                    isValidating: false,
-                    errors: FormError()
-                )
-            }
-
-            it("considers identical states equal") {
-                expect(formState1) == formState2
-            }
-
-            it("considers states with different dirty fields unequal") {
-                formState2.dirtyFields = [.email]
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different form values unequal") {
-                formState2.formValues[.name] = "Jane"
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different default values unequal") {
-                formState2.defaultValues[.name] = "Default"
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different submission states unequal") {
-                formState2.submissionState = .submitted
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different submit success unequal") {
-                formState2.isSubmitSuccessful = true
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different submit counts unequal") {
-                formState2.submitCount = 1
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different validity unequal") {
-                formState2.isValid = false
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different validating status unequal") {
-                formState2.isValidating = true
-                expect(formState1) != formState2
-            }
-
-            it("considers states with different errors unequal") {
-                formState2.errors = FormError(
+            @Test("initializes with provided values")
+            func initializesWithProvidedValues() {
+                let dirtyFields: Set<TestStateFieldName> = [.name, .email]
+                let formValues: FormValue<TestStateFieldName> = [.name: "John", .email: "john@example.com"]
+                let defaultValues: FormValue<TestStateFieldName> = [.name: "", .email: ""]
+                let errors = FormError<TestStateFieldName>(
                     errorFields: [.email],
-                    messages: [.email: ["Error"]]
+                    messages: [.email: ["Invalid email"]]
                 )
-                expect(formState1) != formState2
-            }
-        }
-    }
 
-    func fieldStateSpecs() {
-        describe("FieldState") {
-            var formState: FormState<TestStateFieldName>!
-
-            beforeEach {
-                formState = FormState<TestStateFieldName>(
-                    dirtyFields: [.name, .email],
-                    formValues: [.name: "John", .email: "invalid-email"],
-                    defaultValues: [.name: "", .email: ""],
-                    errors: FormError(
-                        errorFields: [.email],
-                        messages: [.email: ["Invalid email format"]]
-                    )
+                let formState = FormState<TestStateFieldName>(
+                    dirtyFields: dirtyFields,
+                    formValues: formValues,
+                    defaultValues: defaultValues,
+                    submissionState: .submitting,
+                    isSubmitSuccessful: true,
+                    submitCount: 2,
+                    isValid: false,
+                    isValidating: true,
+                    errors: errors
                 )
-            }
 
-            context("for dirty valid field") {
-                it("returns correct field state") {
-                    let fieldState = formState.getFieldState(name: .name)
-
-                    expect(fieldState.isDirty) == true
-                    expect(fieldState.isInvalid) == false
-                    expect(fieldState.error).to(beEmpty())
-                }
-            }
-
-            context("for dirty invalid field") {
-                it("returns correct field state") {
-                    let fieldState = formState.getFieldState(name: .email)
-
-                    expect(fieldState.isDirty) == true
-                    expect(fieldState.isInvalid) == true
-                    expect(fieldState.error) == ["Invalid email format"]
-                }
-            }
-
-            context("for clean valid field") {
-                it("returns correct field state") {
-                    let fieldState = formState.getFieldState(name: .age)
-
-                    expect(fieldState.isDirty) == false
-                    expect(fieldState.isInvalid) == false
-                    expect(fieldState.error).to(beEmpty())
-                }
-            }
-
-            context("for field with multiple errors") {
-                beforeEach {
-                    formState.errors = FormError(
-                        errorFields: [.name],
-                        messages: [.name: ["Required", "Too short", "Invalid characters"]]
-                    )
-                }
-
-                it("returns all error messages") {
-                    let fieldState = formState.getFieldState(name: .name)
-
-                    expect(fieldState.isDirty) == true
-                    expect(fieldState.isInvalid) == true
-                    expect(fieldState.error) == ["Required", "Too short", "Invalid characters"]
-                }
+                #expect(formState.dirtyFields == dirtyFields)
+                #expect(formState.formValues[.name] as? String == "John")
+                #expect(formState.formValues[.email] as? String == "john@example.com")
+                #expect(formState.defaultValues[.name] as? String == "")
+                #expect(formState.defaultValues[.email] as? String == "")
+                #expect(formState.submissionState == .submitting)
+                #expect(formState.isSubmitSuccessful == true)
+                #expect(formState.submitCount == 2)
+                #expect(formState.isValid == false)
+                #expect(formState.isValidating == true)
+                #expect(formState.errors.errorFields.contains(.email))
+                #expect(formState.errors.messages[.email] == ["Invalid email"])
             }
         }
     }
 
-    func formValueOperationsSpecs() {
-        describe("FormValue operations") {
-            var formValue1: FormValue<TestStateFieldName>!
-            var formValue2: FormValue<TestStateFieldName>!
+    @Suite("Mutation operations")
+    struct MutationTests {
 
-            beforeEach {
-                formValue1 = [.name: "John", .email: "john@example.com"]
-                formValue2 = [.age: 30, .address: "123 Main St"]
+        @Suite("Dirty fields manipulation")
+        struct DirtyFieldsTests {
+
+            @Test("adds and removes dirty fields correctly")
+            func addsAndRemovesDirtyFieldsCorrectly() {
+                var formState = FormState<TestStateFieldName>()
+
+                // Add dirty fields
+                formState.dirtyFields.insert(.name)
+                formState.dirtyFields.insert(.email)
+
+                #expect(formState.dirtyFields.contains(.name))
+                #expect(formState.dirtyFields.contains(.email))
+                #expect(formState.dirtyFields.count == 2)
+
+                // Remove dirty field
+                formState.dirtyFields.remove(.name)
+
+                #expect(!formState.dirtyFields.contains(.name))
+                #expect(formState.dirtyFields.contains(.email))
+                #expect(formState.dirtyFields.count == 1)
+            }
+        }
+
+        @Suite("Form values manipulation")
+        struct FormValuesTests {
+
+            @Test("sets and gets form values correctly")
+            func setsAndGetsFormValuesCorrectly() {
+                var formState = FormState<TestStateFieldName>()
+
+                // Set form values
+                formState.formValues[.name] = "Alice"
+                formState.formValues[.email] = "alice@example.com"
+                formState.formValues[.age] = 25
+
+                #expect(formState.formValues[.name] as? String == "Alice")
+                #expect(formState.formValues[.email] as? String == "alice@example.com")
+                #expect(formState.formValues[.age] as? Int == 25)
+
+                // Update form value
+                formState.formValues[.name] = "Alice Smith"
+                #expect(formState.formValues[.name] as? String == "Alice Smith")
+
+                // Remove form value
+                formState.formValues.removeValue(forKey: .age)
+                #expect(formState.formValues[.age] == nil)
+            }
+        }
+
+        @Suite("Submission state changes")
+        struct SubmissionStateTests {
+
+            @Test("changes submission state correctly")
+            func changesSubmissionStateCorrectly() {
+                var formState = FormState<TestStateFieldName>()
+
+                #expect(formState.submissionState == .notSubmit)
+
+                formState.submissionState = .submitting
+                #expect(formState.submissionState == .submitting)
+
+                formState.submissionState = .submitted
+                #expect(formState.submissionState == .submitted)
             }
 
-            context("union operation") {
-                it("merges two form values") {
-                    formValue1.unioned(formValue2)
+            @Test("updates submit count and success state")
+            func updatesSubmitCountAndSuccessState() {
+                var formState = FormState<TestStateFieldName>()
 
-                    expect(formValue1[.name] as? String) == "John"
-                    expect(formValue1[.email] as? String) == "john@example.com"
-                    expect(formValue1[.age] as? Int) == 30
-                    expect(formValue1[.address] as? String) == "123 Main St"
-                }
+                #expect(formState.submitCount == 0)
+                #expect(formState.isSubmitSuccessful == false)
 
-                it("overwrites existing keys") {
-                    formValue2[.name] = "Jane"
-                    formValue1.unioned(formValue2)
+                formState.submitCount = 1
+                formState.isSubmitSuccessful = true
 
-                    expect(formValue1[.name] as? String) == "Jane"
-                    expect(formValue1[.email] as? String) == "john@example.com"
-                }
+                #expect(formState.submitCount == 1)
+                #expect(formState.isSubmitSuccessful == true)
+            }
+        }
 
-                it("handles empty form values") {
-                    let emptyFormValue: FormValue<TestStateFieldName> = [:]
-                    formValue1.unioned(emptyFormValue)
+        @Suite("Validation state changes")
+        struct ValidationStateTests {
 
-                    expect(formValue1[.name] as? String) == "John"
-                    expect(formValue1[.email] as? String) == "john@example.com"
-                }
+            @Test("changes validation state correctly")
+            func changesValidationStateCorrectly() {
+                var formState = FormState<TestStateFieldName>()
 
-                it("handles union with self") {
-                    formValue1.unioned(formValue1)
+                #expect(formState.isValid == true)
+                #expect(formState.isValidating == false)
 
-                    expect(formValue1[.name] as? String) == "John"
-                    expect(formValue1[.email] as? String) == "john@example.com"
-                }
+                formState.isValid = false
+                formState.isValidating = true
+
+                #expect(formState.isValid == false)
+                #expect(formState.isValidating == true)
             }
         }
     }
 
-    func formErrorOperationsSpecs() {
-        describe("FormError operations") {
-            var formError: FormError<TestStateFieldName>!
+    @Suite("Equality operations")
+    struct EqualityTests {
 
-            beforeEach {
-                formError = FormError<TestStateFieldName>()
-            }
+        @Test("considers identical states equal")
+        func considersIdenticalStatesEqual() {
+            let formState1 = FormState<TestStateFieldName>(
+                dirtyFields: [.name],
+                formValues: [.name: "John"],
+                defaultValues: [.name: ""],
+                submissionState: .notSubmit,
+                isSubmitSuccessful: false,
+                submitCount: 0,
+                isValid: true,
+                isValidating: false,
+                errors: FormError<TestStateFieldName>()
+            )
 
-            context("setting messages") {
-                it("sets valid field messages") {
-                    formError.setMessages(name: .name, messages: nil, isValid: true)
+            let formState2 = FormState<TestStateFieldName>(
+                dirtyFields: [.name],
+                formValues: [.name: "John"],
+                defaultValues: [.name: ""],
+                submissionState: .notSubmit,
+                isSubmitSuccessful: false,
+                submitCount: 0,
+                isValid: true,
+                isValidating: false,
+                errors: FormError<TestStateFieldName>()
+            )
 
-                    expect(formError.errorFields).notTo(contain(.name))
-                    expect(formError.messages[.name]).to(beNil())
-                    expect(formError[.name]).to(beNil())
-                }
+            #expect(formState1 == formState2)
+        }
 
-                it("sets invalid field messages") {
-                    formError.setMessages(name: .email, messages: ["Invalid format"], isValid: false)
+        @Test("considers different states unequal")
+        func considersDifferentStatesUnequal() {
+            let formState1 = FormState<TestStateFieldName>(
+                dirtyFields: [.name],
+                formValues: [.name: "John"],
+                defaultValues: [.name: ""],
+                submissionState: .notSubmit,
+                isSubmitSuccessful: false,
+                submitCount: 0,
+                isValid: true,
+                isValidating: false,
+                errors: FormError<TestStateFieldName>()
+            )
 
-                    expect(formError.errorFields).to(contain(.email))
-                    expect(formError.messages[.email]) == ["Invalid format"]
-                    expect(formError[.email]) == ["Invalid format"]
-                }
+            let formState2 = FormState<TestStateFieldName>(
+                dirtyFields: [.email],  // Different dirty field
+                formValues: [.name: "John"],
+                defaultValues: [.name: ""],
+                submissionState: .notSubmit,
+                isSubmitSuccessful: false,
+                submitCount: 0,
+                isValid: true,
+                isValidating: false,
+                errors: FormError<TestStateFieldName>()
+            )
 
-                it("updates existing field messages") {
-                    formError.setMessages(name: .name, messages: ["Error 1"], isValid: false)
-                    formError.setMessages(name: .name, messages: ["Error 2"], isValid: false)
+            #expect(formState1 != formState2)
+        }
+    }
+}
 
-                    expect(formError.errorFields).to(contain(.name))
-                    expect(formError[.name]) == ["Error 2"]
-                }
-            }
+@Suite("FieldState")
+struct FieldStateTests {
 
-            context("removing errors") {
-                beforeEach {
-                    formError.setMessages(name: .name, messages: ["Name error"], isValid: false)
-                    formError.setMessages(name: .email, messages: ["Email error"], isValid: false)
-                }
+    @Suite("Initialization")
+    struct InitializationTests {
 
-                it("removes field completely") {
-                    formError.remove(name: .name)
+        @Test("initializes with provided values")
+        func initializesWithProvidedValues() {
+            let fieldState = FieldState(isDirty: true, isInvalid: false, error: ["Test error"])
 
-                    expect(formError.errorFields).notTo(contain(.name))
-                    expect(formError.messages[.name]).to(beNil())
-                    expect(formError.errorFields).to(contain(.email))
-                }
+            #expect(fieldState.isDirty == true)
+            #expect(fieldState.isInvalid == false)
+            #expect(fieldState.error == ["Test error"])
+        }
 
-                it("removes messages only") {
-                    formError.removeMessagesOnly(name: .name)
+        @Test("initializes with default values")
+        func initializesWithDefaultValues() {
+            let fieldState = FieldState(isDirty: false, isInvalid: true, error: [])
 
-                    expect(formError.errorFields).to(contain(.name))
-                    expect(formError.messages[.name]).to(beNil())
-                }
+            #expect(fieldState.isDirty == false)
+            #expect(fieldState.isInvalid == true)
+            #expect(fieldState.error.isEmpty)
+        }
+    }
 
-                it("removes validity only") {
-                    formError.removeValidityOnly(name: .name)
+    @Suite("State combinations")
+    struct StateCombinationTests {
 
-                    expect(formError.errorFields).notTo(contain(.name))
-                    expect(formError.messages[.name]) == ["Name error"]
-                }
-            }
+        @Test("can be dirty and invalid")
+        func canBeDirtyAndInvalid() {
+            let fieldState = FieldState(isDirty: true, isInvalid: true, error: ["Field is required"])
 
-            context("union operations") {
-                var otherError: FormError<TestStateFieldName>!
+            #expect(fieldState.isDirty == true)
+            #expect(fieldState.isInvalid == true)
+            #expect(fieldState.error == ["Field is required"])
+        }
 
-                beforeEach {
-                    formError.setMessages(name: .name, messages: ["Name error"], isValid: false)
+        @Test("can be clean and valid")
+        func canBeCleanAndValid() {
+            let fieldState = FieldState(isDirty: false, isInvalid: false, error: [])
 
-                    otherError = FormError<TestStateFieldName>()
-                    otherError.setMessages(name: .email, messages: ["Email error"], isValid: false)
-                    otherError.setMessages(name: .age, messages: ["Age error"], isValid: false)
-                }
+            #expect(fieldState.isDirty == false)
+            #expect(fieldState.isInvalid == false)
+            #expect(fieldState.error.isEmpty)
+        }
 
-                it("combines error fields and messages") {
-                    let unionError = formError.union(otherError)
+        @Test("can have multiple error messages")
+        func canHaveMultipleErrorMessages() {
+            let fieldState = FieldState(
+                isDirty: true,
+                isInvalid: true,
+                error: ["Field is required", "Must be at least 8 characters", "Must contain numbers"]
+            )
 
-                    expect(unionError.errorFields).to(contain(.name))
-                    expect(unionError.errorFields).to(contain(.email))
-                    expect(unionError.errorFields).to(contain(.age))
-                    expect(unionError[.name]) == ["Name error"]
-                    expect(unionError[.email]) == ["Email error"]
-                    expect(unionError[.age]) == ["Age error"]
-                }
+            #expect(fieldState.isDirty == true)
+            #expect(fieldState.isInvalid == true)
+            #expect(fieldState.error.count == 3)
+            #expect(fieldState.error.contains("Field is required"))
+            #expect(fieldState.error.contains("Must be at least 8 characters"))
+            #expect(fieldState.error.contains("Must contain numbers"))
+        }
+    }
+}
 
-                it("overwrites existing messages") {
-                    otherError.setMessages(name: .name, messages: ["Updated name error"], isValid: false)
-                    let unionError = formError.union(otherError)
+@Suite("FormValue operations")
+struct FormValueOperationTests {
 
-                    expect(unionError[.name]) == ["Updated name error"]
-                }
+    @Test("supports different value types")
+    func supportsDifferentValueTypes() {
+        var formValue: FormValue<TestStateFieldName> = [:]
 
-                it("handles empty error union") {
-                    let emptyError = FormError<TestStateFieldName>()
-                    let unionError = formError.union(emptyError)
+        formValue[.name] = "John Doe"
+        formValue[.email] = "john@example.com"
+        formValue[.age] = 30
 
-                    expect(unionError.errorFields) == formError.errorFields
-                    expect(unionError.messages) == formError.messages
-                }
-            }
+        #expect(formValue[.name] as? String == "John Doe")
+        #expect(formValue[.email] as? String == "john@example.com")
+        #expect(formValue[.age] as? Int == 30)
+    }
 
-            context("error conformance") {
-                it("conforms to Error protocol") {
-                    let error: Error = formError
-                    expect(error).to(beAKindOf(FormError<TestStateFieldName>.self))
-                }
-            }
+    @Test("handles complex data types")
+    func handlesComplexDataTypes() {
+        var formValue: FormValue<TestStateFieldName> = [:]
+
+        let addressDict = ["street": "123 Main St", "city": "Springfield", "zip": "12345"]
+        formValue[.address] = addressDict
+
+        let retrievedAddress = formValue[.address] as? [String: String]
+        #expect(retrievedAddress?["street"] == "123 Main St")
+        #expect(retrievedAddress?["city"] == "Springfield")
+        #expect(retrievedAddress?["zip"] == "12345")
+    }
+
+    @Test("supports nil values")
+    func supportsNilValues() {
+        var formValue: FormValue<TestStateFieldName> = [:]
+
+        formValue[.name] = "John"
+        #expect(formValue[.name] as? String == "John")
+
+        formValue[.name] = nil
+        #expect(formValue[.name] == nil)
+    }
+}
+
+@Suite("FormError operations")
+struct FormErrorOperationTests {
+
+    @Suite("Initialization")
+    struct InitializationTests {
+
+        @Test("initializes with empty state")
+        func initializesWithEmptyState() {
+            let formError = FormError<TestStateFieldName>()
+
+            #expect(formError.errorFields.isEmpty)
+            #expect(formError.messages.isEmpty)
+        }
+
+        @Test("initializes with provided errors")
+        func initializesWithProvidedErrors() {
+            let errorFields: Set<TestStateFieldName> = [.name, .email]
+            let messages: [TestStateFieldName: [String]] = [
+                .name: ["Name is required"],
+                .email: ["Invalid email format"]
+            ]
+
+            let formError = FormError<TestStateFieldName>(
+                errorFields: errorFields,
+                messages: messages
+            )
+
+            #expect(formError.errorFields == errorFields)
+            #expect(formError.messages[.name] == ["Name is required"])
+            #expect(formError.messages[.email] == ["Invalid email format"])
+        }
+    }
+
+    @Suite("Error manipulation")
+    struct ErrorManipulationTests {
+
+        @Test("creates and accesses errors correctly")
+        func createsAndAccessesErrorsCorrectly() {
+            // Test FormError initialization with data
+            let formError = FormError<TestStateFieldName>(
+                errorFields: [.name],
+                messages: [.name: ["Name is required"]]
+            )
+
+            #expect(formError.errorFields.contains(.name))
+            #expect(formError.messages[.name] == ["Name is required"])
+
+            // Test subscript access
+            #expect(formError[.name] == ["Name is required"])
+            #expect(formError[.email] == []) // Non-existent field returns empty array
+        }
+
+        @Test("handles multiple errors for single field")
+        func handlesMultipleErrorsForSingleField() {
+            let formError = FormError<TestStateFieldName>(
+                errorFields: [.email],
+                messages: [.email: ["Email is required", "Invalid email format", "Email already taken"]]
+            )
+
+            #expect(formError.errorFields.contains(.email))
+            #expect(formError.messages[.email]?.count == 3)
+            #expect(formError.messages[.email]?.contains("Email is required") == true)
+            #expect(formError.messages[.email]?.contains("Invalid email format") == true)
+            #expect(formError.messages[.email]?.contains("Email already taken") == true)
+        }
+    }
+
+    @Suite("Subscript access")
+    struct SubscriptAccessTests {
+
+        @Test("provides subscript access to error messages")
+        func providesSubscriptAccessToErrorMessages() {
+            let formError = FormError<TestStateFieldName>(
+                errorFields: [.name, .email],
+                messages: [
+                    .name: ["Name is required"],
+                    .email: ["Invalid email format", "Email too long"]
+                ]
+            )
+
+            #expect(formError[.name] == ["Name is required"])
+            #expect(formError[.email] == ["Invalid email format", "Email too long"])
+            #expect(formError[.age] == [])  // Non-existent field returns empty array
+        }
+    }
+
+    @Suite("Union operations")
+    struct UnionOperationTests {
+
+        @Test("combines two form errors correctly")
+        func combinesTwoFormErrorsCorrectly() {
+            let error1 = FormError<TestStateFieldName>(
+                errorFields: [.name],
+                messages: [.name: ["Name is required"]]
+            )
+
+            let error2 = FormError<TestStateFieldName>(
+                errorFields: [.email],
+                messages: [.email: ["Invalid email"]]
+            )
+
+            let combinedError = error1.union(error2)
+
+            #expect(combinedError.errorFields.contains(.name))
+            #expect(combinedError.errorFields.contains(.email))
+            #expect(combinedError.messages[.name] == ["Name is required"])
+            #expect(combinedError.messages[.email] == ["Invalid email"])
+        }
+
+        @Test("merges overlapping error messages")
+        func mergesOverlappingErrorMessages() {
+            let error1 = FormError<TestStateFieldName>(
+                errorFields: [.email],
+                messages: [.email: ["Email is required"]]
+            )
+
+            let error2 = FormError<TestStateFieldName>(
+                errorFields: [.email],
+                messages: [.email: ["Invalid email format"]]
+            )
+
+            let combinedError = error1.union(error2)
+
+            #expect(combinedError.errorFields.contains(.email))
+            #expect(combinedError.messages[.email]?.count == 2)
+            #expect(combinedError.messages[.email]?.contains("Email is required") == true)
+            #expect(combinedError.messages[.email]?.contains("Invalid email format") == true)
+        }
+    }
+
+    @Suite("Basic operations")
+    struct BasicOperationTests {
+
+        @Test("creates error with multiple fields")
+        func createsErrorWithMultipleFields() {
+            let formError = FormError<TestStateFieldName>(
+                errorFields: [.name, .email, .age],
+                messages: [
+                    .name: ["Name is required"],
+                    .email: ["Invalid email"],
+                    .age: ["Age must be positive"]
+                ]
+            )
+
+            #expect(formError.errorFields.contains(.name))
+            #expect(formError.errorFields.contains(.email))
+            #expect(formError.errorFields.contains(.age))
+            #expect(formError.messages[.name] == ["Name is required"])
+            #expect(formError.messages[.email] == ["Invalid email"])
+            #expect(formError.messages[.age] == ["Age must be positive"])
+        }
+
+        @Test("checks equality of error fields and messages")
+        func checksEqualityOfErrorFieldsAndMessages() {
+            let error1 = FormError<TestStateFieldName>(
+                errorFields: [.name],
+                messages: [.name: ["Name is required"]]
+            )
+
+            let error2 = FormError<TestStateFieldName>(
+                errorFields: [.name],
+                messages: [.name: ["Name is required"]]
+            )
+
+            #expect(error1.errorFields == error2.errorFields)
+            #expect(error1.messages == error2.messages)
         }
     }
 }

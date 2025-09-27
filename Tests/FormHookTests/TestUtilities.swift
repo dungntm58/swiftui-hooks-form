@@ -6,8 +6,7 @@
 //
 
 import Foundation
-import Quick
-import Nimble
+import Testing
 @testable import FormHook
 
 // MARK: - Test Field Names

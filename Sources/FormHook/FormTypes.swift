@@ -170,8 +170,8 @@ public struct FormError<FieldName>: Equatable where FieldName: Hashable {
     }
 
     /// Returns the array of strings associated with the given field name, if any exist.
-    public subscript(_ name: FieldName) -> [String]? {
-        messages[name]
+    public subscript(_ name: FieldName) -> [String] {
+        messages[name] ?? []
     }
 
     /// Sets the given array of strings as the message for the given field name and updates its validity accordingly.
@@ -202,7 +202,11 @@ public struct FormError<FieldName>: Equatable where FieldName: Hashable {
         let errorFields = errorFields.union(other.errorFields)
         var newMessages = messages
         for (key, newValue) in other.messages {
-            newMessages[key] = newValue
+            if let existingValue = newMessages[key] {
+                newMessages[key] = existingValue + newValue
+            } else {
+                newMessages[key] = newValue
+            }
         }
         return Self(errorFields: errorFields, messages: newMessages)
     }
@@ -300,7 +304,7 @@ public struct FormState<FieldName>: Equatable where FieldName: Hashable {
         FieldState(
             isDirty: dirtyFields.contains(name),
             isInvalid: errors.errorFields.contains(name),
-            error: errors[name] ?? []
+            error: errors[name]
         )
     }
 }
