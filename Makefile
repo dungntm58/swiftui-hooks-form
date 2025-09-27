@@ -1,9 +1,9 @@
 TOOL = swift run -c release --package-path Tools
 PACKAGE = swift package --package-path Tools
 SWIFT_FILE_PATHS = Package.swift Sources Tests Example
-TEST_PLATFORM_IOS = iOS Simulator,name=iPhone 14 Pro
+TEST_PLATFORM_IOS = iOS Simulator,name=iPhone 16 Pro
 TEST_PLATFORM_MACOS = macOS
-TEST_PLATFORM_TVOS = tvOS Simulator,name=Apple TV 4K (at 1080p) (2nd generation)
+TEST_PLATFORM_TVOS = tvOS Simulator,name=Apple TV
 LIBRARY_SCHEME = swiftui-hooks-form
 PRODUCT = FormHook
 EXAMPLE_SCHEME = FormHookExample
