@@ -1,0 +1,117 @@
+name: PR Security Scan
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-scan:
+    name: Security Analysis with SonarCloud
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better relevancy of analysis
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show environment
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - uses: actions/cache/restore@v3
+        id: cache
+        with:
+          path: /Users/runner/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+
+      - name: Resolve dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: make resolve-dependencies
+
+      - uses: actions/cache@v3
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: /Users/runner/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Install SwiftLint
+        run: |
+          brew install swiftlint
+
+      - name: Run SwiftLint
+        run: |
+          swiftlint --reporter json > swiftlint-results.json || true
+          swiftlint
+
+      - name: Build and Test
+        run: |
+          make test-library
+
+      - name: Run build-wrapper for SonarCloud
+        run: |
+          curl -sSLo build-wrapper-macosx-x86.zip \
+            https://sonarcloud.io/static/cpp/build-wrapper-macosx-x86.zip
+          unzip build-wrapper-macosx-x86.zip
+          ./build-wrapper-macosx-x86/build-wrapper-macosx-x86 \
+            --out-dir bw-output swift build
+
+      - name: Run SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.cfamily.build-wrapper-output=bw-output
+            -Dsonar.pullrequest.key=${{ github.event.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
+
+      - name: Upload SwiftLint results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: swiftlint-results
+          path: swiftlint-results.json
+
+  danger:
+    name: Danger Checks
+    runs-on: macos-latest
+    needs: security-scan
+    if: always()  # Run even if security scan fails
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Download SwiftLint results
+        uses: actions/download-artifact@v3
+        with:
+          name: swiftlint-results
+        continue-on-error: true
+
+      - name: Install Danger and SwiftLint
+        run: |
+          # Install Danger via Homebrew
+          brew install danger/tap/danger-swift
+          # Install SwiftLint for code quality checks
+          brew install swiftlint
+
+      - name: Run Danger
+        run: danger-swift ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

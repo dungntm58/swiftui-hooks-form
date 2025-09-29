@@ -1,0 +1,195 @@
+# SwiftLint Configuration for Security-focused Swift Project
+
+# Paths to include/exclude
+included:
+  - Sources
+  - Tests
+  - Example
+
+excluded:
+  - .build
+  - .swiftpm
+  - Package.swift
+  - "**/*.generated.swift"
+  - "**/*.pb.swift"
+
+# Rules Configuration
+disabled_rules:
+  # Formatting rules - handled by swift-format
+  - trailing_whitespace
+  - vertical_whitespace
+  - comma
+  - colon
+  - opening_brace
+  - statement_position
+  - operator_whitespace
+  # Content rules handled elsewhere
+  - todo # We track TODOs in Danger instead
+
+opt_in_rules:
+  # Security-focused rules
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - weak_delegate
+  - unused_private_declaration
+  - unused_import
+  - explicit_init
+  - explicit_self
+  - explicit_type_interface
+  - fatal_error_message
+  - file_header
+  - first_where
+  - force_cast
+  - force_try
+  - discouraged_direct_init
+  - discouraged_optional_boolean
+  - discouraged_optional_collection
+  - empty_string
+  - empty_count
+  - fallthrough
+  - identical_operands
+  - implicit_return
+  - joined_default_parameter
+  - let_var_whitespace
+  - literal_expression_end_indentation
+  - modifier_order
+  - nimble_operator
+  - no_extension_access_modifier
+  - no_grouping_extension
+  - object_literal
+  - operator_usage_whitespace
+  - overridden_super_call
+  - override_in_extension
+  - pattern_matching_keywords
+  - private_action
+  - private_outlet
+  - prohibited_super_call
+  - reduce_boolean
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - required_enum_case
+  - single_test_class
+  - sorted_first_last
+  - sorted_imports
+  - static_operator
+  - strict_fileprivate
+  - switch_case_on_newline
+  - toggle_bool
+  - unavailable_function
+  - unneeded_parentheses_in_closure_argument
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - yoda_condition
+
+# Rule Configuration
+force_cast: error
+force_try: error
+force_unwrapping: error
+implicitly_unwrapped_optional: error
+
+# Line length
+line_length:
+  warning: 120
+  error: 150
+  ignores_function_declarations: true
+  ignores_comments: true
+  ignores_urls: true
+
+# Function body length
+function_body_length:
+  warning: 50
+  error: 100
+
+# File length
+file_length:
+  warning: 400
+  error: 1000
+
+# Type body length
+type_body_length:
+  warning: 200
+  error: 400
+
+# Cyclomatic complexity
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
+# Nesting levels
+nesting:
+  type_level:
+    warning: 3
+    error: 6
+  statement_level:
+    warning: 5
+    error: 10
+
+# Large tuple
+large_tuple:
+  warning: 3
+  error: 4
+
+# Type name
+type_name:
+  min_length:
+    warning: 3
+    error: 2
+  max_length:
+    warning: 40
+    error: 50
+
+# Identifier name
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 40
+    error: 60
+  excluded:
+    - id
+    - i
+    - j
+    - k
+    - x
+    - y
+    - z
+
+# Custom rules for security
+custom_rules:
+  # Detect potential hardcoded secrets
+  no_hardcoded_secrets:
+    name: "No Hardcoded Secrets"
+    regex: '(api[_-]?key|secret[_-]?key|password|token)\s*[=:]\s*"[^"]{8,}"'
+    match_kinds:
+      - string
+    message: "Potential hardcoded secret detected. Use environment variables or secure storage."
+    severity: error
+
+  # Prevent HTTP usage in production code (except localhost)
+  no_http_urls:
+    name: "No HTTP URLs"
+    regex: '"http://(?!localhost|127\.0\.0\.1)'
+    match_kinds:
+      - string
+    message: "Use HTTPS instead of HTTP for secure communication."
+    severity: warning
+
+  # Detect SQL string concatenation
+  no_sql_injection:
+    name: "No SQL Injection"
+    regex: '(SELECT|INSERT|UPDATE|DELETE).*[\+].*"'
+    match_kinds:
+      - string
+    message: "Potential SQL injection. Use parameterized queries instead of string concatenation."
+    severity: error
+
+  # Force error handling for security-critical operations
+  force_error_handling:
+    name: "Force Error Handling"
+    regex: 'try!\s+(keychain|encrypt|decrypt|authenticate|verify)'
+    message: "Security operations should use proper error handling instead of force try."
+    severity: error
+
+reporter: "xcode"
