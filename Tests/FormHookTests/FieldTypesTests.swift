@@ -5,10 +5,10 @@
 //  Created by Claude on 28/09/2025.
 //
 
+@testable import FormHook
 import Foundation
 import SwiftUI
 import Testing
-@testable import FormHook
 
 enum TestFieldTypeName: String, Hashable {
     case username

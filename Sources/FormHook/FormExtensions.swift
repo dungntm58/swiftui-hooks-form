@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import Hooks
+import SwiftUI
 
 // MARK: - Public FormControl Extensions
 

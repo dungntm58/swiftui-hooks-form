@@ -6,9 +6,9 @@
 //
 
 import Foundation
+import Hooks
 import SwiftUI
 import Testing
-import Hooks
 
 @testable import FormHook
 

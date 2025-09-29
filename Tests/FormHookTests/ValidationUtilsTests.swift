@@ -5,9 +5,9 @@
 //  Created by Claude on 28/09/2025.
 //
 
+@preconcurrency @testable import FormHook
 import Foundation
 import Testing
-@preconcurrency @testable import FormHook
 
 enum TestValidationFieldName: Hashable {
     case field1

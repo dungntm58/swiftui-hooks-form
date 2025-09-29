@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import Hooks
+import SwiftUI
 
 // MARK: - Validation Utilities
 
@@ -21,7 +21,7 @@ extension FormControl {
         fieldNames: [FieldName],
         shouldStopOnFirstError: Bool = false
     ) async -> (isValid: Bool, errors: FormError<FieldName>) {
-        return await withTaskGroup(of: KeyValidationResult.self) { group in
+        await withTaskGroup(of: KeyValidationResult.self) { group in
             var errorFields: Set<FieldName> = .init()
             var messages: [FieldName: [String]] = [:]
             var isOverallValid = true
@@ -56,7 +56,7 @@ extension FormControl {
     /// - Parameter shouldStopOnFirstError: Whether to stop validation when the first error is encountered.
     /// - Returns: A tuple containing the overall validity and form errors.
     func validateAllFields(shouldStopOnFirstError: Bool = false) async -> (isValid: Bool, errors: FormError<FieldName>) {
-        return await validateFields(fieldNames: Array(fields.keys), shouldStopOnFirstError: shouldStopOnFirstError)
+        await validateFields(fieldNames: Array(fields.keys), shouldStopOnFirstError: shouldStopOnFirstError)
     }
 
     /// Validates fields with existing errors concurrently for re-validation scenarios.

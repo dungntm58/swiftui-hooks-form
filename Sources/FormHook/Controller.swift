@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import Hooks
+import SwiftUI
 
 /// A convenient view that wraps a call of `useController`
 public struct Controller<Content, FieldName, Value>: View where Content: View, FieldName: Hashable {
@@ -52,7 +52,15 @@ public struct Controller<Content, FieldName, Value>: View where Content: View, F
 
     public var body: some View {
         HookScope {
-            let renderOption = useController(form: form, name: name, defaultValue: defaultValue, rules: rules, shouldUnregister: shouldUnregister, unregisterOption: unregisterOption, fieldOrdinal: fieldOrdinal)
+            let renderOption = useController(
+                form: form,
+                name: name,
+                defaultValue: defaultValue,
+                rules: rules,
+                shouldUnregister: shouldUnregister,
+                unregisterOption: unregisterOption,
+                fieldOrdinal: fieldOrdinal
+            )
             render(renderOption)
         }
     }

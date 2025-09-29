@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import Hooks
+import SwiftUI
 
 /// A type that represents a field option.
 ///
@@ -17,12 +17,11 @@ public struct FieldOption<FieldName, Value> {
     public let name: FieldName
     /// A binding of type `Value`.
     public let value: Binding<Value>
-
-    init(name: FieldName, value: Binding<Value>) {
-        self.name = name
-        self.value = value
-    }
 }
 
 /// A tuple representing the render options for a controller.
-public typealias ControllerRenderOption<FieldName, Value> = (field: FieldOption<FieldName, Value>, fieldState: FieldState, formState: FormState<FieldName>) where FieldName: Hashable
+public typealias ControllerRenderOption<FieldName, Value> = (
+    field: FieldOption<FieldName, Value>,
+    fieldState: FieldState,
+    formState: FormState<FieldName>
+) where FieldName: Hashable

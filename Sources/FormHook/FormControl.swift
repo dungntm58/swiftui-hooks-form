@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import Hooks
+import SwiftUI
 
 /// A control that holds form information
 public class FormControl<FieldName> where FieldName: Hashable {
@@ -36,7 +36,7 @@ public class FormControl<FieldName> where FieldName: Hashable {
 
     var instantFormState: FormState<FieldName>
     @MainActor @Binding
-    internal(set) public var formState: FormState<FieldName>
+    public internal(set) var formState: FormState<FieldName>
 
     init(options: FormOption<FieldName>, formState: Binding<FormState<FieldName>>) {
         self.options = options

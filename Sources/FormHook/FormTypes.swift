@@ -320,18 +320,6 @@ public struct FieldState {
 
     /// An array of strings containing any errors associated with the field.
     public let error: [String]
-
-    /// Initializes a new FieldState struct with the specified values. 
-    ///
-    /// - Parameters: 
-    ///   - isDirty: A boolean value indicating whether the field has been modified or not. 
-    ///   - isInvalid: A boolean value indicating whether the field is valid or not. 
-    ///   - error: An array of strings containing any errors associated with the field. 
-    init(isDirty: Bool, isInvalid: Bool, error: [String]) {
-        self.isDirty = isDirty
-        self.isInvalid = isInvalid
-        self.error = error
-    }
 }
 
 protocol FieldProtocol {

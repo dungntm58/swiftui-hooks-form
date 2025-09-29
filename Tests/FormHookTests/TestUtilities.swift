@@ -5,9 +5,9 @@
 //  Created by Claude on 28/09/2025.
 //
 
+@testable import FormHook
 import Foundation
 import Testing
-@testable import FormHook
 
 // MARK: - Test Field Names
 
@@ -52,7 +52,7 @@ class DelayedMockValidator<Value>: Validator {
     }
 
     func generateMessage(result: Bool) -> [String] {
-        return result ? [] : errorMessages
+        result ? [] : errorMessages
     }
 }
 
@@ -183,7 +183,7 @@ struct TestHelpers {
 
     /// Creates a sample form value for testing
     static func createSampleFormValue() -> FormValue<BasicTestFieldName> {
-        return [
+        [
             .name: "John Doe",
             .email: "john.doe@example.com",
             .password: "securePassword123",
@@ -236,7 +236,7 @@ struct PerformanceTestHelpers {
 
     /// Creates a large number of validators for performance testing
     static func createLargeValidatorSet(count: Int) -> [any Validator<String>] {
-        return (0..<count).map { index in
+        (0..<count).map { index in
             SimpleMockValidator<String>(isValid: index % 2 == 0, errorMessages: ["Error \(index)"])
         }
     }
@@ -264,7 +264,7 @@ extension FormError {
         for fieldName: FN,
         messages: [String] = ["Test error"]
     ) -> FormError<FN> where FN: Hashable {
-        return FormError<FN>(
+        FormError<FN>(
             errorFields: [fieldName],
             messages: [fieldName: messages]
         )
@@ -294,7 +294,7 @@ extension RegisterOption {
         isValid: Bool = true,
         errorMessages: [String] = ["Test validation failed"]
     ) -> RegisterOption<Value> {
-        return RegisterOption<Value>(
+        RegisterOption<Value>(
             rules: SimpleMockValidator<Value>(isValid: isValid, errorMessages: errorMessages),
             defaultValue: defaultValue
         )

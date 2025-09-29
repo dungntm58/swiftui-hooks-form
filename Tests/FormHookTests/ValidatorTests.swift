@@ -5,10 +5,10 @@
 //  Created by Robert on 03/12/2022.
 //
 
-import Foundation
-import Testing
-import RegexBuilder
 @testable import FormHook
+import Foundation
+import RegexBuilder
+import Testing
 
 private func messageGenerator(_ value: Bool) -> [String] {
     if value {
@@ -393,7 +393,7 @@ struct ValidationTests {
         func handlesAsyncOperations() async {
             // Test that validators are truly async and can handle delays
             let validator = NotEmptyValidator<String> { _ in
-                return ["Delayed message"]
+                ["Delayed message"]
             }
 
             // Test that the async validation works correctly

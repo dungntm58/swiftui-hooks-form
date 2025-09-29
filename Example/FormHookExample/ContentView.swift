@@ -5,9 +5,9 @@
 //  Created by Robert on 06/11/2022.
 //
 
-import SwiftUI
-import Hooks
 import FormHook
+import Hooks
+import SwiftUI
 
 enum FormFieldName: String, CaseIterable {
     case firstName = "First name"
@@ -67,7 +67,7 @@ struct ContentView: View {
                     Task {
                         try await form.handleSubmit(onValid: { _, _ in
                             
-                        }, onInvalid: { _, errors in
+                        }, onInvalid: { _, _ in
                             
                         })
                     }
@@ -183,7 +183,7 @@ struct ContentView: View {
             ) {
                 Text(field.name.rawValue)
             }
-                .environment(\.locale, Locale.init(identifier: "en"))
+                .environment(\.locale, Locale(identifier: "en"))
             
             if let error = fieldState.error.first {
                 VStack(alignment: .leading) {

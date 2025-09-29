@@ -101,7 +101,7 @@ private struct CompoundValidator<Value>: Validator {
                     }
                 }
                 return CompoundValidationResult(
-                    messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                    messages: results.flatMap { validator, result in validator.generateMessage(result: result) },
                     boolValue: isValid
                 )
             }
@@ -112,13 +112,13 @@ private struct CompoundValidator<Value>: Validator {
                     results.append(resultPair)
                     guard resultPair.0.isValid(result: resultPair.1) else {
                         return CompoundValidationResult(
-                            messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                            messages: results.flatMap { validator, result in validator.generateMessage(result: result) },
                             boolValue: false
                         )
                     }
                 }
                 return CompoundValidationResult(
-                    messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                    messages: results.flatMap { validator, result in validator.generateMessage(result: result) },
                     boolValue: true
                 )
             case .or:
@@ -126,13 +126,13 @@ private struct CompoundValidator<Value>: Validator {
                     results.append(resultPair)
                     if resultPair.0.isValid(result: resultPair.1) {
                         return CompoundValidationResult(
-                            messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                            messages: results.flatMap { validator, result in validator.generateMessage(result: result) },
                             boolValue: true
                         )
                     }
                 }
                 return CompoundValidationResult(
-                    messages: results.flatMap { (validator, result) in validator.generateMessage(result: result) },
+                    messages: results.flatMap { validator, result in validator.generateMessage(result: result) },
                     boolValue: false
                 )
             }
@@ -151,7 +151,10 @@ private struct PreMapValidator<Value, Result, Output>: Validator {
     let mapHandler: (Value) async -> Output
     let originValidator: AnyValidator
 
-    init<OriginValidator>(mapHandler: @escaping (Value) async -> Output, validator: OriginValidator) where OriginValidator: Validator, OriginValidator.Value == Output {
+    init<OriginValidator>(
+        mapHandler: @escaping (Value) async -> Output,
+        validator: OriginValidator
+    ) where OriginValidator: Validator, OriginValidator.Value == Output {
         self.mapHandler = mapHandler
         self.originValidator = validator.eraseToAnyValidator()
     }

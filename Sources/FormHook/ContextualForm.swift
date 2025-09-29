@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import Hooks
+import SwiftUI
 
 /// A convenient view that wraps a call of `useForm`.
 public struct ContextualForm<Content, FieldName>: View where Content: View, FieldName: Hashable {

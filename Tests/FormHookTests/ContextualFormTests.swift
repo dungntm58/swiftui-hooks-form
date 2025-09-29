@@ -5,10 +5,10 @@
 //  Created by Claude on 28/09/2025.
 //
 
+@preconcurrency @testable import FormHook
 import Foundation
 import SwiftUI
 import Testing
-@preconcurrency @testable import FormHook
 
 enum TestContextFieldName: Hashable {
     case username
@@ -84,7 +84,7 @@ struct ContextualFormTests {
                 context: Any?,
                 fieldNames: [TestContextFieldName]
             ) async -> Result<FormValue<TestContextFieldName>, FormError<TestContextFieldName>> {
-                return .success(values)
+                .success(values)
             }
 
             // Test that resolver type is compatible

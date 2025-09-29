@@ -1,6 +1,6 @@
+@testable import FormHook
 import SwiftUI
 import Testing
-@testable import FormHook
 
 enum TestFieldName: String {
     case a
@@ -1325,9 +1325,9 @@ struct FormControlResolverTests {
         @Test("resolver returns success for all fields")
         func resolverReturnsSuccessForAllFields() async throws {
             var formState: FormState<TestFieldName> = .init()
-            let resolver: Resolver<TestFieldName> = { values, context, fieldNames in
+            let resolver: Resolver<TestFieldName> = { values, _, _ in
                 // Always return success
-                return .success(values)
+                .success(values)
             }
 
             let options = FormOption<TestFieldName>(
@@ -1364,7 +1364,7 @@ struct FormControlResolverTests {
         @Test("resolver modifies form values during validation")
         func resolverModifiesFormValuesDuringValidation() async throws {
             var formState: FormState<TestFieldName> = .init()
-            let resolver: Resolver<TestFieldName> = { values, context, fieldNames in
+            let resolver: Resolver<TestFieldName> = { values, _, _ in
                 // Modify values and return success
                 var modifiedValues = values
                 modifiedValues[.a] = "resolverModified"
@@ -1409,7 +1409,7 @@ struct FormControlResolverTests {
         @Test("resolver returns failure for specific fields")
         func resolverReturnsFailureForSpecificFields() async throws {
             var formState: FormState<TestFieldName> = .init()
-            let resolver: Resolver<TestFieldName> = { values, context, fieldNames in
+            let resolver: Resolver<TestFieldName> = { _, _, _ in
                 // Return failure for field .a
                 let error = FormError<TestFieldName>(
                     errorFields: [.a],
@@ -1460,7 +1460,7 @@ struct FormControlResolverTests {
             let testContext = "testContext"
             var capturedContext: Any?
 
-            let resolver: Resolver<TestFieldName> = { values, context, fieldNames in
+            let resolver: Resolver<TestFieldName> = { values, context, _ in
                 capturedContext = context
                 return .success(values)
             }
@@ -1494,7 +1494,7 @@ struct FormControlResolverTests {
             var formState: FormState<TestFieldName> = .init()
             var capturedFieldNames: [TestFieldName]?
 
-            let resolver: Resolver<TestFieldName> = { values, context, fieldNames in
+            let resolver: Resolver<TestFieldName> = { values, _, fieldNames in
                 capturedFieldNames = fieldNames
                 return .success(values)
             }
@@ -1534,7 +1534,7 @@ struct FormControlResolverTests {
         @Test("resolver works with trigger validation")
         func resolverWorksWithTriggerValidation() async {
             var formState: FormState<TestFieldName> = .init()
-            let resolver: Resolver<TestFieldName> = { values, context, fieldNames in
+            let resolver: Resolver<TestFieldName> = { _, _, _ in
                 // Return failure for field .a
                 let error = FormError<TestFieldName>(
                     errorFields: [.a],
