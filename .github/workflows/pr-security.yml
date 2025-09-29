@@ -76,7 +76,7 @@ jobs:
             -Dsonar.pullrequest.base=${{ github.base_ref }}
 
       - name: Upload SwiftLint results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: swiftlint-results
@@ -99,7 +99,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Download SwiftLint results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: swiftlint-results
         continue-on-error: true
