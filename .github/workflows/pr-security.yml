@@ -115,6 +115,7 @@ jobs:
           brew install swiftlint
 
       - name: Run Danger
-        run: danger-swift ci
+        run: danger-swift ci --failOnErrors --no-publish-check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECURITY_SCAN_RESULT: ${{ needs.security-scan.result }}

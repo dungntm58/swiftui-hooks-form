@@ -3,6 +3,22 @@ import Foundation
 
 let danger = Danger()
 
+// MARK: - Security Scan Job Status Check
+
+// Check if the security scan job failed
+if let securityScanResult = ProcessInfo.processInfo.environment["SECURITY_SCAN_RESULT"] {
+    if securityScanResult != "success" {
+        fail("""
+        🚨 **Security Scan Failed**
+
+        The security-scan job (including SonarCloud analysis) did not complete successfully.
+        Status: `\(securityScanResult)`
+
+        Please check the security-scan job logs for details.
+        """)
+    }
+}
+
 // MARK: - PR Validation
 
 // Check if PR has a proper title and description
