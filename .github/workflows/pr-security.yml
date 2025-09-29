@@ -57,22 +57,14 @@ jobs:
 
       - name: Run build-wrapper for SonarCloud
         run: |
-          # Check architecture and download appropriate build wrapper
-          if [[ $(uname -m) == "arm64" ]]; then
-            echo "Downloading arm64 build wrapper..."
-            curl -sSLo build-wrapper-macosx-arm64.zip \
-              https://sonarcloud.io/static/cpp/build-wrapper-macosx-arm64.zip
-            unzip build-wrapper-macosx-arm64.zip
-            ./build-wrapper-macosx-arm64/build-wrapper-macosx-arm64 \
-              --out-dir bw-output swift build
-          else
-            echo "Downloading x86_64 build wrapper..."
-            curl -sSLo build-wrapper-macosx-x86.zip \
-              https://sonarcloud.io/static/cpp/build-wrapper-macosx-x86.zip
-            unzip build-wrapper-macosx-x86.zip
-            ./build-wrapper-macosx-x86/build-wrapper-macosx-x86 \
-              --out-dir bw-output swift build
-          fi
+          # Download x86 build wrapper (works on both x86 and arm64 via Rosetta)
+          curl -sSLo build-wrapper-macosx-x86.zip \
+            https://sonarcloud.io/static/cpp/build-wrapper-macosx-x86.zip
+          unzip -q build-wrapper-macosx-x86.zip
+
+          # Run build wrapper (works on arm64 via Rosetta 2)
+          ./build-wrapper-macosx-x86/build-wrapper-macosx-x86 \
+            --out-dir bw-output swift build
 
       - name: Run SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
