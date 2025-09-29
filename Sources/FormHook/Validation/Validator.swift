@@ -98,14 +98,20 @@ public struct AnyValidator: Validator {
     /// Initializes a new instance of `AnyValidator` with the specified validation function and message generator function. 
     /// - Parameter validateFunction: The validation function to use for validation. 
     /// - Parameter messageGenerator: The message generator function to use for generating messages. Defaults to an empty array.
-    public init<Value, Result>(_ validateFunction: @escaping ValidatorFunction<Value, Result>, messageGenerator: @escaping MessageGeneratorFunction<Result> = { _ in [] }) where Result: BoolConvertible {
+    public init<Value, Result>(
+        _ validateFunction: @escaping ValidatorFunction<Value, Result>,
+        messageGenerator: @escaping MessageGeneratorFunction<Result> = { _ in [] }
+    ) where Result: BoolConvertible {
         self.box = HandlerBox(validateFunction, messageGenerator: messageGenerator)
     }
 
     /// Initializes a new instance of `AnyValidatior` with the specified validation function and message generator function for boolean convertible results. 
     /// - Parameter validateFunction: The validation function to use for validation. 
     /// - Parameter messageGenerator: The message generator function to use for generating messages. Defaults to an empty array.
-    public init<Value>(_ validateFunction: @escaping ValidatorFunction<Value, BoolConvertible>, messageGenerator: @escaping MessageGeneratorFunction<BoolConvertible> = { _ in [] }) {
+    public init<Value>(
+        _ validateFunction: @escaping ValidatorFunction<Value, BoolConvertible>,
+        messageGenerator: @escaping MessageGeneratorFunction<BoolConvertible> = { _ in [] }
+    ) {
         self.box = BoolConvertibleHandlerBox(validateFunction, messageGenerator: messageGenerator)
     }
 
@@ -198,7 +204,10 @@ private struct BoolConvertibleHandlerBox<Value>: AnyValidatorBox {
     let validateFunction: ValidatorFunction<Value, BoolConvertible>
     let messageGenerator: MessageGeneratorFunction<BoolConvertible>
 
-    init(_ validateFunction: @escaping ValidatorFunction<Value, BoolConvertible>, messageGenerator: @escaping MessageGeneratorFunction<BoolConvertible>) {
+    init(
+        _ validateFunction: @escaping ValidatorFunction<Value, BoolConvertible>,
+        messageGenerator: @escaping MessageGeneratorFunction<BoolConvertible>
+    ) {
         self.validateFunction = validateFunction
         self.messageGenerator = messageGenerator
     }
